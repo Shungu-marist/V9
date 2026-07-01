@@ -1,0 +1,2689 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shungu High School | Innovation & Excellence</title>
+    
+    <!-- Tailwind CSS for rapid styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js for 3D Background -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Google Fonts: Playfair Display for Serif (Elegance), Inter for Sans (Tech/Modern) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Firebase (Firestore) — stores the photo gallery, site content, and student results -->
+    <script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-auth-compat.js"></script>
+
+    <!-- Chart.js — used for student result trend charts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+
+    <!-- jsPDF — used so students can download their results as a PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root {
+            /* Brand Colors */
+            --shungu-blue: #001f3f;
+            --shungu-gold: #ffd700;
+            --shungu-gold-glow: rgba(255, 215, 0, 0.4);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* Fallback */
+            /* UPDATED: Added your requested background image and positioned it to the right */
+            background-image: url('logo.png');
+            /* Changed to 'contain' to zoom out and ensure the full logo is visible without cropping */
+            background-size: contain; 
+            /* Added a slight 5% padding from the right edge for better visual balance */
+            background-position: right 5% center; 
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, .font-serif {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Glassmorphism Utilities */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 215, 0, 0.15);
+            transition: all 0.4s ease;
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 215, 0, 0.5);
+            box-shadow: 0 10px 30px var(--shungu-gold-glow);
+            transform: translateY(-5px);
+        }
+
+        .glass-nav {
+            background: linear-gradient(to bottom, rgba(2, 6, 23, 0.9), rgba(2, 6, 23, 0.4));
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Hide Scrollbar for Horizontal Sliders */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Glowing Text Accent */
+        .text-glow {
+            text-shadow: 0 0 15px var(--shungu-gold-glow);
+        }
+
+        /* Interactive Canvas */
+        #webgl-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            pointer-events: none; /* Let clicks pass through to UI */
+        }
+
+        /* Gradient Overlay to ensure text readability over 3D background */
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            /* UPDATED: Dark on the left (for text/sphere), Transparent on the right (for your background logo) */
+            background: linear-gradient(to right, rgba(2,6,23,0.95) 0%, rgba(2,6,23,0.6) 50%, rgba(2,6,23,0.1) 100%);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-[#ffd700] selection:text-[#001f3f]">
+
+    <!-- 3D Canvas Context -->
+    <canvas id="webgl-canvas"></canvas>
+    <!-- Darkening Overlay -->
+    <div class="bg-overlay"></div>
+
+    <nav class="fixed w-full z-50 glass-nav transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="openStaffRoleSelect()" title="Staff Portal (Admin / Teacher)">
+                <!-- School Logo Image -->
+                <img src="logo.png" alt="Shungu High Logo" class="h-12 md:h-14 w-auto object-contain drop-shadow-[0_0_10px_rgba(255,215,0,0.4)] transition-transform duration-300 hover:scale-105 rounded-lg">
+                <span class="text-xl md:text-2xl font-serif font-bold tracking-wide hover:text-[#ffd700] transition-colors">SHUNGU HIGH SCHOOL<span class="text-[#ffd700]">.</span></span>
+            </div>
+            
+            <!-- Desktop Links -->
+            <div class="hidden md:flex space-x-8 items-center text-sm font-medium tracking-wider uppercase">
+                <a href="#home" class="hover:text-[#ffd700] transition-colors">Home</a>
+                <a href="#about" class="hover:text-[#ffd700] transition-colors">About Us</a>
+                <a href="#blog" class="hover:text-[#ffd700] transition-colors">School Blog</a>
+                <button onclick="openLoginModal()" class="px-5 py-2 border border-[#ffd700] text-[#ffd700] rounded-md hover:bg-[#ffd700] hover:text-[#001f3f] transition-all duration-300 shadow-[0_0_15px_rgba(255,215,0,0.2)]">Portal Login</button>
+            </div>
+
+            <!-- Mobile Menu Button -->
+            <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="md:hidden relative w-7 h-7 text-white focus:outline-none">
+                <i data-lucide="menu" id="menu-icon-open" class="w-6 h-6 absolute inset-0"></i>
+                <i data-lucide="x" id="menu-icon-close" class="w-6 h-6 absolute inset-0 hidden"></i>
+            </button>
+        </div>
+
+        <!-- Mobile Menu Panel -->
+        <div id="mobile-menu-panel" class="md:hidden hidden flex-col glass-nav border-t border-white/10 px-6 py-2">
+            <a href="#home" onclick="closeMobileMenu()" class="block py-3 text-sm font-medium tracking-wider uppercase hover:text-[#ffd700] transition-colors border-b border-white/5">Home</a>
+            <a href="#about" onclick="closeMobileMenu()" class="block py-3 text-sm font-medium tracking-wider uppercase hover:text-[#ffd700] transition-colors border-b border-white/5">About Us</a>
+            <a href="#blog" onclick="closeMobileMenu()" class="block py-3 text-sm font-medium tracking-wider uppercase hover:text-[#ffd700] transition-colors border-b border-white/5">School Blog</a>
+            <button onclick="closeMobileMenu(); openLoginModal()" class="w-full my-4 px-5 py-3 border border-[#ffd700] text-[#ffd700] rounded-md hover:bg-[#ffd700] hover:text-[#001f3f] transition-all duration-300 text-sm font-medium tracking-wider uppercase">Portal Login</button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="home" class="relative min-h-screen flex items-center justify-center pt-20 px-6">
+            <!-- Pushed text to the left side with md:items-start so it balances with the right background -->
+            <div class="text-center md:text-left z-10 max-w-4xl mx-auto md:ml-[5%] mt-16 md:mt-0 flex flex-col items-center md:items-start w-full">
+                <p class="text-[#ffd700] tracking-[0.3em] text-sm md:text-base font-light mb-6 uppercase animate-fade-in-up">The End Crowns The Work</p>
+                <h1 class="text-5xl md:text-7xl lg:text-8xl font-serif font-bold leading-tight mb-8 drop-shadow-2xl">
+                    Finis <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#ffd700] to-yellow-200 text-glow">Coronat</span> Opus.
+                </h1>
+                <p class="text-slate-300 text-lg md:text-xl max-w-2xl mb-10 font-light leading-relaxed">
+                    A premier institution driving the future of the Heritage-Based Curriculum through advanced digital integration and student-led technology.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row justify-center md:justify-start gap-4">
+                    <a href="#blog" class="px-8 py-4 bg-[#ffd700] text-[#001f3f] font-semibold rounded-lg hover:bg-yellow-300 transition-all duration-300 shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.6)] transform hover:-translate-y-1">
+                        Explore School Blog
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Scroll Indicator -->
+            <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce opacity-50">
+                <i data-lucide="chevron-down" class="w-8 h-8 text-[#ffd700]"></i>
+            </div>
+        </section>
+
+        <!-- UPDATED: New Public Photo Gallery Section (Controlled by Admin Panel) -->
+        <section id="photo-gallery" class="py-24 px-6 md:px-12 relative z-10 bg-transparent border-t border-white/5">
+            <div class="max-w-7xl mx-auto">
+                <div class="mb-12">
+                    <h2 class="text-3xl md:text-5xl font-serif font-bold mb-4 text-[#ffd700]">Campus Life Gallery</h2>
+                    <p class="text-slate-400 max-w-xl">A visual journey through Shungu High School's events, facilities, and daily student life.</p>
+                </div>
+                <div id="public-gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    <!-- Dynamically populated via JS from Admin State -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Campus Blog & Events Section -->
+        <section id="blog" class="py-24 px-6 md:px-12 relative z-10 bg-slate-950/60 backdrop-blur-md border-t border-white/5">
+            <div class="max-w-7xl mx-auto">
+                <div class="flex flex-col lg:flex-row gap-12">
+                    <!-- Blog Column -->
+                    <div class="lg:w-2/3">
+                        <div class="mb-10">
+                            <h2 class="text-3xl md:text-5xl font-serif font-bold mb-4">School Blog</h2>
+                            <p class="text-slate-400">Latest news, academic achievements, and community leadership updates.</p>
+                        </div>
+                        <div id="public-blog-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Dynamically populated via JS from Admin State -->
+                        </div>
+                    </div>
+                    
+                    <!-- Events Calendar Column -->
+                    <div class="lg:w-1/3">
+                        <div class="mb-10">
+                            <h2 class="text-3xl md:text-4xl font-serif font-bold mb-4">Calendar</h2>
+                            <p class="text-slate-400">Upcoming school events & term dates.</p>
+                        </div>
+                        <div id="public-events-list" class="flex flex-col gap-4">
+                            <!-- Dynamically populated via JS from Admin State -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Get To Know Us Section -->
+        <section id="about" class="py-24 px-6 md:px-12 relative z-10 bg-gradient-to-b from-transparent to-[#001f3f]/40 border-t border-white/5">
+            <div class="max-w-4xl mx-auto text-center glass-panel p-8 md:p-12 rounded-2xl border border-[#ffd700]/20 shadow-[0_0_30px_rgba(0,31,63,0.8)]">
+                <i data-lucide="landmark" class="w-12 h-12 text-[#ffd700] mx-auto mb-6"></i>
+                <h2 class="text-3xl md:text-5xl font-serif font-bold mb-6">Get To Know Us</h2>
+                <div id="public-about-text" class="text-slate-300 leading-relaxed text-lg md:text-xl whitespace-pre-line font-light">
+                    <!-- Dynamically populated via JS from Admin State -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="border-t border-white/10 bg-[#020617] relative z-10 pt-16 pb-8 px-6">
+            <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex items-center gap-3 mb-6">
+                        <!-- School Logo Image (Footer scale) -->
+                        <img src="logo.png" alt="Shungu High Logo" class="h-10 w-auto object-contain rounded-md">
+                        <span class="text-2xl font-serif font-bold tracking-wide">SHUNGU<span class="text-[#ffd700]">.</span></span>
+                    </div>
+                    <p class="text-slate-400 mb-6 max-w-sm">Cultivating excellence and driving technological innovation within the Heritage-Based Curriculum. Building the future from Kwekwe.</p>
+                    <div class="flex gap-4">
+                        <a href="#" class="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-slate-300 hover:text-[#ffd700] hover:border-[#ffd700] transition-colors"><i data-lucide="facebook" class="w-4 h-4"></i></a>
+                        <a href="#" class="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-slate-300 hover:text-[#ffd700] hover:border-[#ffd700] transition-colors"><i data-lucide="twitter" class="w-4 h-4"></i></a>
+                        <a href="#" class="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-slate-300 hover:text-[#ffd700] hover:border-[#ffd700] transition-colors"><i data-lucide="linkedin" class="w-4 h-4"></i></a>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold mb-4 uppercase text-sm tracking-wider">Quick Links</h4>
+                    <ul class="space-y-3 text-slate-400 text-sm">
+                        <li><a href="#" class="hover:text-[#ffd700] transition-colors">Admissions</a></li>
+                        <li><a href="#" class="hover:text-[#ffd700] transition-colors">Academic Calendar</a></li>
+                        <li><a href="javascript:void(0)" onclick="openStudentLogin()" class="hover:text-[#ffd700] transition-colors">Student Portal</a></li>
+                        <li><a href="#" class="hover:text-[#ffd700] transition-colors">Contact Administration</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold mb-4 uppercase text-sm tracking-wider">Contact</h4>
+                    <ul class="space-y-3 text-slate-400 text-sm">
+                        <li class="flex items-start gap-3">
+                            <i data-lucide="map-pin" class="w-4 h-4 mt-0.5 text-[#ffd700]"></i>
+                            <span>Shungu High School,<br>Kwekwe, Zimbabwe</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <i data-lucide="phone" class="w-4 h-4 text-[#ffd700]"></i>
+                            <span>+263 77 000 0000</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <i data-lucide="mail" class="w-4 h-4 text-[#ffd700]"></i>
+                            <span>admin@shunguhigh.ac.zw</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 max-w-7xl mx-auto">
+                <p>&copy; 2026 Shungu High School. All rights reserved.</p>
+                <p class="mt-2 md:mt-0">Designed & Engineered with <i data-lucide="heart" class="w-3 h-3 inline text-[#ffd700] mx-1"></i> in Zimbabwe</p>
+            </div>
+        </footer>
+    </main>
+
+    
+    <!-- Custom UI Message Box (Replaces generic alerts) -->
+    <div id="ui-message" class="fixed top-24 left-1/2 transform -translate-x-1/2 z-[200] hidden px-6 py-3 rounded-lg text-white font-medium shadow-2xl transition-all duration-300 pointer-events-none"></div>
+
+    <!-- View Card Modal (The universal viewer for Text & Images) -->
+    <div id="view-card-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 transition-opacity duration-300 p-6">
+        <div class="glass-panel p-8 rounded-2xl w-full max-w-2xl relative max-h-[80vh] overflow-y-auto" id="view-card-box">
+            <button onclick="closeViewCard()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <h2 id="view-card-title" class="text-3xl font-serif font-bold text-[#ffd700] mb-4"></h2>
+            <div id="view-card-content" class="text-slate-300 leading-relaxed text-lg"></div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 transition-opacity duration-300">
+        <div class="glass-panel p-8 rounded-2xl w-[90vw] max-w-md relative scale-95 transition-transform duration-300" id="login-box">
+            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div class="text-center mb-8">
+                <img src="logo.png" class="h-16 mx-auto mb-4 rounded-lg object-contain" alt="Logo">
+                <h2 class="text-2xl font-serif font-bold text-white">Portal Management</h2>
+                <p class="text-slate-400 text-sm mt-2">Sign in to manage portal content.</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Username</label>
+                    <input type="text" id="login-user" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700] transition-colors" placeholder="Enter username">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Password</label>
+                    <input type="password" id="login-pass" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700] transition-colors" placeholder="Enter password">
+                </div>
+                <button onclick="attemptLogin()" class="w-full py-3 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors mt-4 shadow-[0_0_15px_rgba(255,215,0,0.2)]">Access Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard (Full Screen Overlay) -->
+    <div id="admin-dashboard" class="fixed inset-0 z-[150] hidden bg-[#020617] flex-col md:flex-row text-white overflow-hidden">
+        
+        <!-- Dashboard Sidebar -->
+        <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-white/10 bg-[#001f3f]/30 flex flex-col justify-between">
+            <div>
+                <div class="p-6 border-b border-white/10 flex items-center gap-3">
+                    <img src="logo.png" class="h-8 rounded object-contain" alt="Logo">
+                    <span class="font-serif font-bold text-lg tracking-wide text-[#ffd700]">Portal Admin</span>
+                </div>
+                <nav class="p-4 space-y-2">
+                    <button onclick="switchTab('news')" id="tab-btn-news" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors bg-[#ffd700] text-[#001f3f] font-bold shadow-[0_0_15px_rgba(255,215,0,0.2)]"><i data-lucide="newspaper" class="w-5 h-5"></i> News Articles</button>
+                    <button onclick="switchTab('calendar')" id="tab-btn-calendar" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium"><i data-lucide="calendar" class="w-5 h-5"></i> Calendar Events</button>
+                    <button onclick="switchTab('about')" id="tab-btn-about" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium"><i data-lucide="info" class="w-5 h-5"></i> Get To Know Us</button>
+                    <!-- UPDATED: Gallery Admin Button -->
+                    <button onclick="switchTab('gallery')" id="tab-btn-gallery" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium"><i data-lucide="image" class="w-5 h-5"></i> Manage Gallery</button>
+                </nav>
+            </div>
+            <div class="p-4 border-t border-white/10">
+                <button onclick="logoutAdmin()" class="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors font-medium"><i data-lucide="log-out" class="w-4 h-4"></i> Sign Out & Save</button>
+            </div>
+        </aside>
+
+        <!-- Dashboard Main Content -->
+        <main class="flex-1 p-6 md:p-10 overflow-y-auto relative">
+            
+            <!-- News Management Tab -->
+            <div id="tab-news" class="dashboard-tab animate-fade-in-up">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <h2 class="text-2xl md:text-3xl font-serif font-bold">Manage News Articles</h2>
+                    <button onclick="toggleNewsForm()" class="px-5 py-2.5 bg-[#ffd700] text-[#001f3f] rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-yellow-300 transition-colors shadow-lg"><i data-lucide="plus" class="w-4 h-4"></i> Add New Article</button>
+                </div>
+
+                <!-- Add News Form (Hidden initially) -->
+                <div id="news-form-container" class="glass-panel p-6 rounded-xl mb-8 hidden border border-[#ffd700]/50 shadow-[0_0_20px_rgba(255,215,0,0.1)]">
+                    <h3 class="text-lg font-bold mb-4 text-[#ffd700] flex items-center gap-2"><i data-lucide="pen-tool" class="w-5 h-5"></i> Post New Article</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <input type="text" id="news-title" placeholder="Article Title" class="bg-[#020617] border border-white/10 rounded-lg px-4 py-3 text-white w-full focus:border-[#ffd700] outline-none transition-colors">
+                        <input type="text" id="news-category" placeholder="Category (e.g. Academics, Sports)" class="bg-[#020617] border border-white/10 rounded-lg px-4 py-3 text-white w-full focus:border-[#ffd700] outline-none transition-colors">
+                        <input type="text" id="news-icon" placeholder="Lucide Icon Name (e.g. users, trophy, star)" class="bg-[#020617] border border-white/10 rounded-lg px-4 py-3 text-white w-full focus:border-[#ffd700] outline-none transition-colors">
+                    </div>
+                    <textarea id="news-excerpt" placeholder="Article Content / Excerpt" rows="4" class="bg-[#020617] border border-white/10 rounded-lg px-4 py-3 text-white w-full mb-4 focus:border-[#ffd700] outline-none resize-none transition-colors"></textarea>
+                    <div class="flex justify-end gap-3">
+                        <button onclick="toggleNewsForm()" class="px-5 py-2.5 border border-slate-600 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">Cancel</button>
+                        <button onclick="addNewsArticle()" class="px-5 py-2.5 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors">Publish Article</button>
+                    </div>
+                </div>
+
+                <!-- Articles Table -->
+                <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[600px]">
+                            <thead>
+                                <tr class="bg-white/5 border-b border-white/10">
+                                    <th class="p-4 text-sm font-bold text-slate-400 w-32">Date</th>
+                                    <th class="p-4 text-sm font-bold text-slate-400">Title</th>
+                                    <th class="p-4 text-sm font-bold text-slate-400 w-40">Category</th>
+                                    <th class="p-4 text-sm font-bold text-slate-400 text-right w-24">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-news-list" class="divide-y divide-white/5">
+                                <!-- JS injected -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Management Tab -->
+            <div id="tab-calendar" class="dashboard-tab hidden animate-fade-in-up">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-2xl md:text-3xl font-serif font-bold">Manage Calendar Events</h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Add Event Form -->
+                    <div class="glass-panel p-6 rounded-xl border border-white/10 h-fit sticky top-0">
+                        <h3 class="text-lg font-bold mb-4 text-[#ffd700] flex items-center gap-2"><i data-lucide="calendar-plus" class="w-5 h-5"></i> Add New Event</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs font-bold tracking-wider text-slate-400 mb-2 block uppercase">Event Title</label>
+                                <input type="text" id="event-title" placeholder="e.g. Annual Science Fair" class="bg-[#020617] border border-white/10 rounded-lg px-4 py-3 text-white w-full focus:border-[#ffd700] outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold tracking-wider text-slate-400 mb-2 block uppercase">Event Date</label>
+                                <input type="text" id="event-date" placeholder="e.g. July 20, 2026" class="bg-[#020617] border border-white/10 rounded-lg px-4 py-3 text-white w-full focus:border-[#ffd700] outline-none transition-colors">
+                            </div>
+                            <button onclick="addEvent()" class="w-full py-3 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors mt-2 shadow-[0_0_15px_rgba(255,215,0,0.1)]">Save to Calendar</button>
+                        </div>
+                    </div>
+
+                    <!-- Events Table -->
+                    <div class="lg:col-span-2 glass-panel rounded-xl overflow-hidden border border-white/10">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-white/5 border-b border-white/10">
+                                    <th class="p-4 text-sm font-bold text-slate-400 w-40">Date</th>
+                                    <th class="p-4 text-sm font-bold text-slate-400">Event Title</th>
+                                    <th class="p-4 text-sm font-bold text-slate-400 text-right w-24">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-events-list" class="divide-y divide-white/5">
+                                <!-- JS injected -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Us Management Tab -->
+            <div id="tab-about" class="dashboard-tab hidden animate-fade-in-up h-full flex flex-col pb-10">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <h2 class="text-2xl md:text-3xl font-serif font-bold">Edit 'Get To Know Us' Info</h2>
+                    <button onclick="saveAboutInfo()" class="px-6 py-2.5 bg-[#ffd700] text-[#001f3f] rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-yellow-300 transition-colors shadow-lg"><i data-lucide="save" class="w-4 h-4"></i> Save Content Changes</button>
+                </div>
+                <div class="glass-panel p-6 md:p-8 rounded-xl border border-white/10 flex-grow flex flex-col">
+                    <p class="text-slate-400 text-sm mb-6 flex items-center gap-2"><i data-lucide="info" class="w-4 h-4"></i> This content is displayed prominently on the public homepage. Use line breaks to create distinct paragraphs.</p>
+                    <textarea id="about-textarea" class="w-full flex-grow bg-[#020617] border border-white/10 rounded-xl p-6 text-white leading-relaxed text-lg focus:border-[#ffd700] outline-none resize-none transition-colors min-h-[300px]"></textarea>
+                </div>
+            </div>
+
+            <!-- UPDATED: Gallery Management Tab -->
+            <div id="tab-gallery" class="dashboard-tab hidden animate-fade-in-up">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <h2 class="text-2xl md:text-3xl font-serif font-bold">Manage Photo Gallery</h2>
+                    <div class="flex gap-4">
+                        <button onclick="document.getElementById('gallery-upload-input').click()" class="px-5 py-2.5 bg-[#ffd700] text-[#001f3f] rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-yellow-300 transition-colors shadow-lg">
+                            <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload Photo
+                        </button>
+                        <input type="file" id="gallery-upload-input" class="hidden" accept="image/*" onchange="handleGalleryUpload(event)">
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-xl border border-white/10">
+                    <div id="admin-gallery-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <!-- JS injected -->
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ============ STUDENT RESULTS PORTAL ============ -->
+
+    <!-- Student Login Modal -->
+    <div id="student-login-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 transition-opacity duration-300">
+        <div class="glass-panel p-8 rounded-2xl w-[90vw] max-w-md relative scale-95 transition-transform duration-300" id="student-login-box">
+            <button onclick="closeStudentLogin()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div class="text-center mb-8">
+                <img src="logo.png" class="h-16 mx-auto mb-4 rounded-lg object-contain" alt="Logo">
+                <h2 class="text-2xl font-serif font-bold text-white">Student Results Portal</h2>
+                <p class="text-slate-400 text-sm mt-2">Enter your full name and Student ID to view your results.</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Full Name</label>
+                    <input type="text" id="student-login-name" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700] transition-colors" placeholder="Enter your full name">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Student ID (Password)</label>
+                    <input type="password" id="student-login-id" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700] transition-colors" placeholder="Enter your Student ID">
+                </div>
+                <button onclick="attemptStudentLogin()" class="w-full py-3 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors mt-4 shadow-[0_0_15px_rgba(255,215,0,0.2)]">View My Results</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Results Dashboard -->
+    <div id="student-dashboard" class="fixed inset-0 z-[150] hidden bg-[#020617] flex-col text-white overflow-y-auto">
+        <div class="max-w-5xl mx-auto w-full px-6 py-10">
+            <div class="flex justify-between items-start mb-10">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-serif font-bold text-[#ffd700]">My Results</h2>
+                    <p id="student-dashboard-name" class="text-slate-400 mt-1"></p>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="downloadStudentResultsPDF()" class="flex items-center gap-2 px-4 py-2.5 border border-[#ffd700]/50 text-[#ffd700] rounded-lg hover:bg-[#ffd700]/10 transition-colors font-medium text-sm"><i data-lucide="download" class="w-4 h-4"></i> <span class="hidden sm:inline">Download PDF</span></button>
+                    <button onclick="logoutStudent()" class="flex items-center gap-2 px-4 py-2.5 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors font-medium text-sm shrink-0"><i data-lucide="log-out" class="w-4 h-4"></i> <span class="hidden sm:inline">Logout</span></button>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-xl border border-white/10 mb-8">
+                <h3 class="text-lg font-bold mb-4 text-white">Performance Over Time</h3>
+                <p id="student-trend-empty" class="text-slate-500 text-sm hidden">No results recorded yet — check back after your teacher publishes them.</p>
+                <canvas id="student-trend-chart" height="110"></canvas>
+            </div>
+
+            <div class="glass-panel p-6 rounded-xl border border-white/10">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                    <h3 class="text-lg font-bold text-white">Term Results</h3>
+                    <select id="student-term-select" onchange="renderStudentTermDetail()" class="bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#ffd700] text-sm w-full md:w-auto"></select>
+                </div>
+                <div id="student-term-detail"><!-- JS injected --></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ STAFF (ADMIN / TEACHER) PORTAL ============ -->
+
+    <!-- Staff Role Select Modal -->
+    <div id="staff-role-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 transition-opacity duration-300">
+        <div class="glass-panel p-8 rounded-2xl w-[90vw] max-w-md relative scale-95 transition-transform duration-300" id="staff-role-box">
+            <button onclick="closeStaffRoleSelect()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div class="text-center mb-8">
+                <img src="logo.png" class="h-16 mx-auto mb-4 rounded-lg object-contain" alt="Logo">
+                <h2 class="text-2xl font-serif font-bold text-white">Staff Portal</h2>
+                <p class="text-slate-400 text-sm mt-2">Are you logging in as an Administrator or a Teacher?</p>
+            </div>
+            <div class="space-y-3">
+                <button onclick="selectStaffRole('admin')" class="w-full flex items-center gap-3 px-5 py-4 border border-white/10 rounded-lg hover:border-[#ffd700] hover:bg-white/5 transition-colors text-left">
+                    <i data-lucide="shield" class="w-6 h-6 text-[#ffd700]"></i>
+                    <div>
+                        <div class="font-bold text-white">Administrator</div>
+                        <div class="text-xs text-slate-400">Manage students, classes & staff accounts</div>
+                    </div>
+                </button>
+                <button onclick="selectStaffRole('teacher')" class="w-full flex items-center gap-3 px-5 py-4 border border-white/10 rounded-lg hover:border-[#ffd700] hover:bg-white/5 transition-colors text-left">
+                    <i data-lucide="graduation-cap" class="w-6 h-6 text-[#ffd700]"></i>
+                    <div>
+                        <div class="font-bold text-white">Teacher</div>
+                        <div class="text-xs text-slate-400">Enter results & manage grading system</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Login Modal -->
+    <div id="staff-login-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 transition-opacity duration-300">
+        <div class="glass-panel p-8 rounded-2xl w-[90vw] max-w-md relative scale-95 transition-transform duration-300" id="staff-login-box">
+            <button onclick="closeStaffLogin()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div class="text-center mb-8">
+                <img src="logo.png" class="h-16 mx-auto mb-4 rounded-lg object-contain" alt="Logo">
+                <h2 id="staff-login-title" class="text-2xl font-serif font-bold text-white">Staff Login</h2>
+                <p id="staff-login-subtitle" class="text-slate-400 text-sm mt-2">Enter your name and password to continue.</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Name</label>
+                    <input type="text" id="staff-login-name" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700] transition-colors" placeholder="Enter your name">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Password</label>
+                    <input type="password" id="staff-login-pass" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700] transition-colors" placeholder="Enter password">
+                </div>
+                <div id="staff-login-confirm-wrap" class="hidden">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Confirm Password</label>
+                    <input type="password" id="staff-login-confirm" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700] transition-colors" placeholder="Re-enter password">
+                </div>
+                <button id="staff-login-submit-btn" onclick="attemptStaffLogin()" class="w-full py-3 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors mt-4 shadow-[0_0_15px_rgba(255,215,0,0.2)]">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Records Dashboard -->
+    <div id="marks-admin-dashboard" class="fixed inset-0 z-[150] hidden bg-[#020617] flex-col md:flex-row text-white overflow-hidden">
+        <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-white/10 bg-[#001f3f]/30 flex flex-col justify-between">
+            <div>
+                <div class="p-6 border-b border-white/10 flex items-center gap-3">
+                    <img src="logo.png" class="h-8 rounded object-contain" alt="Logo">
+                    <span class="font-serif font-bold text-lg tracking-wide text-[#ffd700]">Admin: Records</span>
+                </div>
+                <nav class="p-4 space-y-2">
+                    <button onclick="switchMarksAdminTab('students')" id="marks-tab-btn-students" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors bg-[#ffd700] text-[#001f3f] font-bold shadow-[0_0_15px_rgba(255,215,0,0.2)]"><i data-lucide="users" class="w-5 h-5"></i> Students</button>
+                    <button onclick="switchMarksAdminTab('classes')" id="marks-tab-btn-classes" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium"><i data-lucide="layers" class="w-5 h-5"></i> Classes & Levels</button>
+                    <button onclick="switchMarksAdminTab('staff')" id="marks-tab-btn-staff" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium"><i data-lucide="id-card" class="w-5 h-5"></i> Teacher Accounts</button>
+                </nav>
+            </div>
+            <div class="p-4 border-t border-white/10">
+                <button onclick="logoutStaff()" class="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors font-medium"><i data-lucide="log-out" class="w-4 h-4"></i> Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-6 md:p-10 overflow-y-auto relative">
+            <!-- Students Tab -->
+            <div id="marks-tab-students" class="marks-admin-tab animate-fade-in-up">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <h2 class="text-2xl md:text-3xl font-serif font-bold">Manage Students</h2>
+                    <button onclick="toggleStudentForm()" class="px-5 py-2.5 bg-[#ffd700] text-[#001f3f] rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-yellow-300 transition-colors shadow-lg"><i data-lucide="user-plus" class="w-4 h-4"></i> Add Student</button>
+                </div>
+
+                <div id="student-form-container" class="glass-panel p-6 rounded-xl mb-8 hidden border border-[#ffd700]/50 shadow-[0_0_20px_rgba(255,215,0,0.1)]">
+                    <h3 id="student-form-title" class="text-lg font-bold mb-4 text-[#ffd700] flex items-center gap-2"><i data-lucide="user-plus" class="w-5 h-5"></i> Add Student</h3>
+                    <input type="hidden" id="student-edit-id">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <input type="text" id="student-form-name" placeholder="Full Name" class="bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                        <input type="text" id="student-form-studentid" placeholder="Student ID (acts as password)" class="bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                        <select id="student-form-classid" class="bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700] md:col-span-2"></select>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="saveStudent()" class="px-5 py-2.5 bg-[#ffd700] text-[#001f3f] rounded-lg font-semibold text-sm hover:bg-yellow-300 transition-colors">Save Student</button>
+                        <button onclick="toggleStudentForm()" class="px-5 py-2.5 border border-white/20 rounded-lg font-semibold text-sm hover:bg-white/5 transition-colors">Cancel</button>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-xl border border-white/10 overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr class="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
+                                <th class="pb-3">Name</th>
+                                <th class="pb-3">Student ID</th>
+                                <th class="pb-3">Class</th>
+                                <th class="pb-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="marks-admin-students-list" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Classes Tab -->
+            <div id="marks-tab-classes" class="marks-admin-tab hidden animate-fade-in-up">
+                <h2 class="text-2xl md:text-3xl font-serif font-bold mb-8">Classes & Levels</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="glass-panel p-6 rounded-xl border border-white/10">
+                        <h3 class="text-lg font-bold mb-4 text-[#ffd700]">Add Class</h3>
+                        <div class="space-y-3">
+                            <input type="text" id="class-form-name" placeholder="Class Name (e.g. Form 4A)" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                            <input type="text" id="class-form-level" placeholder="Level (e.g. Form 4)" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                            <select id="class-form-teacher" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                                <option value="">— Assign Teacher (optional) —</option>
+                            </select>
+                            <button onclick="addClass()" class="w-full py-3 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors mt-2 shadow-[0_0_15px_rgba(255,215,0,0.1)]">Add Class</button>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2 glass-panel p-6 rounded-xl border border-white/10 overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
+                                    <th class="pb-3">Class Name</th>
+                                    <th class="pb-3">Level</th>
+                                    <th class="pb-3">Teacher</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="marks-admin-classes-list" class="divide-y divide-white/5"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staff Accounts Tab -->
+            <div id="marks-tab-staff" class="marks-admin-tab hidden animate-fade-in-up">
+                <h2 class="text-2xl md:text-3xl font-serif font-bold mb-8">Teacher & Admin Accounts</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="glass-panel p-6 rounded-xl border border-white/10">
+                        <h3 class="text-lg font-bold mb-4 text-[#ffd700]">Add Account</h3>
+                        <div class="space-y-3">
+                            <input type="text" id="staff-form-name" placeholder="Full Name" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                            <input type="text" id="staff-form-pass" placeholder="Password" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                            <select id="staff-form-role" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                                <option value="teacher">Teacher</option>
+                                <option value="admin">Administrator</option>
+                            </select>
+                            <button onclick="addStaffAccount()" class="w-full py-3 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors mt-2 shadow-[0_0_15px_rgba(255,215,0,0.1)]">Add Account</button>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2 glass-panel p-6 rounded-xl border border-white/10 overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
+                                    <th class="pb-3">Name</th>
+                                    <th class="pb-3">Role</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="marks-admin-staff-list" class="divide-y divide-white/5"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Teacher Dashboard -->
+    <div id="teacher-dashboard" class="fixed inset-0 z-[150] hidden bg-[#020617] flex-col md:flex-row text-white overflow-hidden">
+        <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-white/10 bg-[#001f3f]/30 flex flex-col justify-between">
+            <div>
+                <div class="p-6 border-b border-white/10 flex items-center gap-3">
+                    <img src="logo.png" class="h-8 rounded object-contain" alt="Logo">
+                    <span class="font-serif font-bold text-lg tracking-wide text-[#ffd700]">Teacher Portal</span>
+                </div>
+                <nav class="p-4 space-y-2">
+                    <button onclick="switchTeacherTab('entry')" id="teacher-tab-btn-entry" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors bg-[#ffd700] text-[#001f3f] font-bold shadow-[0_0_15px_rgba(255,215,0,0.2)]"><i data-lucide="edit-3" class="w-5 h-5"></i> Enter Results</button>
+                    <button onclick="switchTeacherTab('grading')" id="teacher-tab-btn-grading" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium"><i data-lucide="sliders" class="w-5 h-5"></i> Grading System</button>
+                </nav>
+            </div>
+            <div class="p-4 border-t border-white/10">
+                <button onclick="logoutStaff()" class="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors font-medium"><i data-lucide="log-out" class="w-4 h-4"></i> Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-6 md:p-10 overflow-y-auto relative">
+            <!-- Results Entry Tab -->
+            <div id="teacher-tab-entry" class="teacher-tab animate-fade-in-up">
+                <h2 class="text-2xl md:text-3xl font-serif font-bold mb-2">Enter Student Results</h2>
+                <p class="text-slate-400 text-sm mb-6">Fill in the whole class at once. Add subjects as columns, then enter each student's score in the table.</p>
+
+                <!-- Controls row -->
+                <div class="glass-panel p-5 rounded-xl border border-white/10 mb-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Class</label>
+                            <select id="teacher-select-class" onchange="onTeacherClassChange()" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Term</label>
+                            <select id="teacher-result-term" onchange="loadExistingResultsIntoTable()" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                                <option>Term 1</option>
+                                <option>Term 2</option>
+                                <option>Term 3</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Year</label>
+                            <input type="number" id="teacher-result-year" value="2026" onchange="loadExistingResultsIntoTable()" class="w-full bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subjects header row -->
+                <div class="glass-panel p-5 rounded-xl border border-white/10 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Subjects</span>
+                        <button onclick="addSubjectColumn()" class="text-sm text-[#ffd700] hover:underline flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Add Subject</button>
+                    </div>
+                    <div id="subject-columns-header" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <!-- Marks grid table -->
+                <div class="glass-panel rounded-xl border border-white/10 overflow-x-auto mb-6">
+                    <table class="w-full text-left border-collapse min-w-[480px]" id="marks-entry-table">
+                        <thead>
+                            <tr class="border-b border-white/10 bg-[#001f3f]/30">
+                                <th class="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider w-40">Student</th>
+                                <th id="marks-table-subject-headers" class="contents"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="marks-entry-tbody" class="divide-y divide-white/5"></tbody>
+                    </table>
+                    <div id="marks-table-empty" class="py-10 text-center text-slate-500 text-sm">Select a class above to load students.</div>
+                </div>
+
+                <button onclick="saveAllResults()" class="w-full py-3 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors shadow-[0_0_15px_rgba(255,215,0,0.2)]">Save Results for Whole Class</button>
+            </div>
+
+            <!-- Grading System Tab -->
+            <div id="teacher-tab-grading" class="teacher-tab hidden animate-fade-in-up">
+                <h2 class="text-2xl md:text-3xl font-serif font-bold mb-8">Grading System</h2>
+                <div class="glass-panel p-6 rounded-xl border border-white/10">
+                    <p class="text-slate-400 text-sm mb-6">Define the score ranges for each grade. This applies school-wide and updates how every student's results are graded.</p>
+                    <div id="grading-bands-list" class="space-y-3 mb-4"></div>
+                    <button onclick="addGradingBandRow()" class="text-sm text-[#ffd700] hover:underline flex items-center gap-1 mb-6"><i data-lucide="plus" class="w-4 h-4"></i> Add Grade Band</button>
+                    <button onclick="saveGradingBands()" class="w-full py-3 bg-[#ffd700] text-[#001f3f] font-bold rounded-lg hover:bg-yellow-300 transition-colors shadow-[0_0_15px_rgba(255,215,0,0.2)]">Save Grading System</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Mobile nav menu toggle
+        function toggleMobileMenu() {
+            const panel = document.getElementById('mobile-menu-panel');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+                document.getElementById('menu-icon-open').classList.add('hidden');
+                document.getElementById('menu-icon-close').classList.remove('hidden');
+            } else {
+                closeMobileMenu();
+            }
+        }
+
+        function closeMobileMenu() {
+            const panel = document.getElementById('mobile-menu-panel');
+            panel.classList.add('hidden');
+            panel.classList.remove('flex');
+            document.getElementById('menu-icon-open').classList.remove('hidden');
+            document.getElementById('menu-icon-close').classList.add('hidden');
+        }
+
+        // Close the mobile menu automatically if the screen is resized/rotated past mobile width
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) closeMobileMenu();
+        });
+
+        // Navbar blur effect on scroll
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.style.background = 'rgba(2, 6, 23, 0.85)';
+                nav.style.borderBottom = '1px solid rgba(255, 215, 0, 0.1)';
+            } else {
+                nav.style.background = 'linear-gradient(to bottom, rgba(2, 6, 23, 0.9), rgba(2, 6, 23, 0.4))';
+                nav.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+            }
+        });
+
+        
+        // --- 1. Global State Management ---
+        const portalState = {
+            // articles, events, and gallery now live in Firestore, not in this file.
+            // They start empty and are populated by loadSiteContent() on page load.
+            // aboutText keeps a fallback so the page isn't blank before the DB responds
+            // or if the admin hasn't saved a custom value yet.
+            aboutText: "Shungu High School is a premier institution located in Kwekwe, dedicated to driving the future of the Heritage-Based Curriculum. We focus on advanced digital integration and student-led technology to prepare our students for a rapidly evolving world.\n\nOur mission is to cultivate excellence and innovation, ensuring every student reaches their full academic and personal potential. Finis Coronat Opus.",
+            articles: [],
+            events: [],
+            gallery: []
+        };
+
+        // --- 1b. Firebase (Firestore) config — pictures only ---
+        // These values are meant to be public; they identify your Firebase
+        // project, they are not secret keys. Real protection comes from the
+        // Firestore Security Rules you set in step 3 of the setup guide.
+        // Get these from Firebase Console > Project Settings > Your apps > Web app
+        const firebaseConfig = {
+            apiKey: "AIzaSyDhj-EDZ9rgw6qlSllM_EUTHnw0KS8OOAk",
+            authDomain: "shungu-high-portal-50186.firebaseapp.com",
+            projectId: "shungu-high-portal-50186",
+            storageBucket: "shungu-high-portal-50186.firebasestorage.app",
+            messagingSenderId: "466462767980",
+            appId: "1:466462767980:web:16c14a7cb251bf85d95149",
+            measurementId: "G-M6T2F6XVKW"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const galleryCollection = firebase.firestore().collection('gallery');
+        const articlesCollection = firebase.firestore().collection('articles');
+        const eventsCollection = firebase.firestore().collection('events');
+        const settingsDoc = firebase.firestore().collection('settings').doc('about');
+
+        // Loads gallery, articles, events, and the about text from Firestore in parallel
+        async function loadSiteContent() {
+            try {
+                const [gallerySnap, articlesSnap, eventsSnap, aboutSnap] = await Promise.all([
+                    galleryCollection.orderBy('uploadedAt', 'desc').get(),
+                    articlesCollection.orderBy('createdAt', 'desc').get(),
+                    eventsCollection.orderBy('createdAt', 'asc').get(),
+                    settingsDoc.get()
+                ]);
+
+                portalState.gallery = gallerySnap.docs.map(doc => ({
+                    id: doc.id,
+                    url: doc.data().url,
+                    caption: doc.data().caption
+                }));
+
+                portalState.articles = articlesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                portalState.events = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                if (aboutSnap.exists) {
+                    portalState.aboutText = aboutSnap.data().aboutText;
+                }
+            } catch (err) {
+                console.error('Failed to load site content:', err);
+                showMessage('Could not load content from the database. Check your connection.', 'error');
+            }
+            renderPublicViews();
+            renderAdminViews();
+        }
+
+        // Resizes/compresses an image client-side before it's stored as base64,
+        // so a single photo doesn't bloat a single Firestore document (1MB limit per doc).
+        function compressImageFile(file, maxDimension = 1600, quality = 0.8) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const reader = new FileReader();
+                reader.onload = (e) => { img.src = e.target.result; };
+                reader.onerror = reject;
+                img.onload = () => {
+                    let { width, height } = img;
+                    if (width > height && width > maxDimension) {
+                        height = Math.round(height * (maxDimension / width));
+                        width = maxDimension;
+                    } else if (height > maxDimension) {
+                        width = Math.round(width * (maxDimension / height));
+                        height = maxDimension;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // --- 2. Custom UI Message Utility (Replacing Alerts) ---
+        function showMessage(msg, type = 'success') {
+            const uiBox = document.getElementById('ui-message');
+            uiBox.innerHTML = `<div class="flex items-center gap-2"><i data-lucide="${type === 'error' ? 'alert-circle' : 'check-circle'}" class="w-5 h-5"></i> ${msg}</div>`;
+            uiBox.className = `fixed top-24 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-lg text-white font-medium shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-300 max-w-[90vw] w-max text-center text-sm md:text-base ${type === 'error' ? 'bg-red-500 border border-red-400' : 'bg-emerald-600 border border-emerald-400'}`;
+            uiBox.classList.remove('hidden');
+            uiBox.classList.add('animate-fade-in-up');
+            
+            // Re-initialize icons for the new HTML
+            lucide.createIcons();
+
+            setTimeout(() => {
+                uiBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- 3. Rendering the Public Facing Website ---
+        function renderPublicViews() {
+            // Render Get To Know Us Text
+            document.getElementById('public-about-text').innerHTML = portalState.aboutText.replace(/\n/g, '<br/>');
+            
+            // Render Campus Blog Grid
+            const blogGrid = document.getElementById('public-blog-grid');
+            if(portalState.articles.length === 0) {
+                blogGrid.innerHTML = `<div class="col-span-1 md:col-span-2 text-slate-500 text-center py-10 glass-panel rounded-2xl border border-white/5">No articles published yet.</div>`;
+            } else {
+                blogGrid.innerHTML = portalState.articles.map(article => `
+                    <article onclick="openViewCard('${article.title}', '${article.excerpt}', 'Blog')" class="glass-panel rounded-2xl overflow-hidden flex flex-col group border border-white/5 hover:border-[#ffd700]/30 cursor-pointer">
+                        <div class="h-48 bg-[#001f3f] overflow-hidden relative">
+                            <div class="absolute inset-0 bg-gradient-to-br from-[#001f3f] to-slate-900 group-hover:scale-105 transition-transform duration-700"></div>
+                            <div class="absolute inset-0 flex items-center justify-center opacity-20 group-hover:opacity-40 transition-opacity duration-500">
+                                <i data-lucide="${article.icon}" class="w-20 h-20 text-[#ffd700]"></i>
+                            </div>
+                            <div class="absolute top-4 left-4 bg-[#001f3f]/80 backdrop-blur border border-[#ffd700]/50 text-[#ffd700] text-xs font-bold px-3 py-1 rounded-full shadow-lg">${article.category}</div>
+                        </div>
+                        <div class="p-6 flex-grow flex flex-col justify-between">
+                            <div>
+                                <p class="text-slate-400 text-xs font-bold tracking-wider mb-3 uppercase">${article.date}</p>
+                                <h3 class="text-xl font-bold text-white mb-3 group-hover:text-[#ffd700] transition-colors line-clamp-2">${article.title}</h3>
+                                <p class="text-slate-400 text-sm line-clamp-3 mb-4">${article.excerpt}</p>
+                            </div>
+                            <span class="text-[#ffd700] text-sm font-bold flex items-center gap-2 cursor-pointer hover:gap-3 transition-all uppercase tracking-wide">Read Article <i data-lucide="arrow-right" class="w-4 h-4"></i></span>
+                        </div>
+                    </article>
+                `).join('');
+            }
+
+            // Render Events Sidebar
+            const eventsList = document.getElementById('public-events-list');
+            if(portalState.events.length === 0) {
+                eventsList.innerHTML = `<div class="text-slate-500 text-center py-10 glass-panel rounded-2xl border border-white/5">No upcoming events.</div>`;
+            } else {
+                eventsList.innerHTML = portalState.events.map(ev => `
+                    <div class="glass-panel p-5 rounded-xl border border-white/5 hover:border-[#ffd700]/30 transition-colors flex items-center gap-4 group">
+                        <div class="bg-[#020617] p-3 rounded-lg border border-white/10 group-hover:border-[#ffd700]/50 text-slate-400 group-hover:text-[#ffd700] transition-colors">
+                            <i data-lucide="calendar" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-[#ffd700] text-xs font-bold tracking-widest uppercase mb-1">${ev.date}</p>
+                            <h4 class="text-white font-medium">${ev.title}</h4>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // UPDATED: Render Public Image Gallery
+            const publicGalleryGrid = document.getElementById('public-gallery-grid');
+            if(portalState.gallery.length === 0) {
+                publicGalleryGrid.innerHTML = `<div class="col-span-full text-slate-500 text-center py-10 glass-panel rounded-2xl border border-white/5">No photos available at the moment.</div>`;
+            } else {
+                publicGalleryGrid.innerHTML = portalState.gallery.map(img => `
+                    <div class="glass-panel rounded-xl overflow-hidden group cursor-pointer aspect-video relative border border-white/5 hover:border-[#ffd700]/30 transition-colors" onclick="viewPhoto('${img.url}')">
+                        <img src="${img.url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                            <i data-lucide="zoom-in" class="w-6 h-6 text-[#ffd700]"></i>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Re-initialize icons for generated HTML
+            lucide.createIcons();
+        }
+
+        // --- 4. Rendering the Admin Dashboard ---
+        function renderAdminViews() {
+            // Setup Textarea
+            document.getElementById('about-textarea').value = portalState.aboutText;
+
+            // Setup News Table
+            const adminNewsList = document.getElementById('admin-news-list');
+            adminNewsList.innerHTML = portalState.articles.map(article => `
+                <tr class="hover:bg-white/5 transition-colors group">
+                    <td class="p-4 text-sm text-slate-400">${article.date}</td>
+                    <td class="p-4 text-sm text-white font-medium">${article.title}</td>
+                    <td class="p-4 text-sm text-[#ffd700]"><span class="bg-[#001f3f] px-2 py-1 rounded text-xs border border-[#ffd700]/20">${article.category}</span></td>
+                    <td class="p-4 text-right">
+                        <button onclick="deleteArticle('${article.id}')" class="p-2 text-red-400 hover:bg-red-500 hover:text-white rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" title="Delete Article"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Setup Events Table
+            const adminEventsList = document.getElementById('admin-events-list');
+            adminEventsList.innerHTML = portalState.events.map(ev => `
+                <tr class="hover:bg-white/5 transition-colors group">
+                    <td class="p-4 text-sm text-slate-400 whitespace-nowrap">${ev.date}</td>
+                    <td class="p-4 text-sm text-white font-medium w-full">${ev.title}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="deleteEvent('${ev.id}')" class="p-2 text-red-400 hover:bg-red-500 hover:text-white rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" title="Delete Event"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // UPDATED: Setup Gallery Grid
+            const adminGalleryGrid = document.getElementById('admin-gallery-grid');
+            if (portalState.gallery.length === 0) {
+                adminGalleryGrid.innerHTML = `<div class="col-span-full text-slate-500 text-center py-10">No photos uploaded yet. Click "Upload Photo" to begin.</div>`;
+            } else {
+                adminGalleryGrid.innerHTML = portalState.gallery.map(img => `
+                    <div class="group relative rounded-xl overflow-hidden aspect-video border border-white/10 bg-black/50">
+                        <img src="${img.url}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-center items-center gap-4">
+                            <button class="p-3 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-colors backdrop-blur-sm shadow-lg" onclick="deleteGalleryImage('${img.id}')" title="Delete Image">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            lucide.createIcons();
+        }
+
+        // Initialize state visually on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPublicViews();
+            renderAdminViews();
+            loadSiteContent(); // fetches articles, events, about text, and gallery from Firestore
+        });
+
+
+        // --- 5. Portal Login Flow & Modals ---
+        
+        function viewPhoto(url) {
+            document.getElementById('view-card-title').innerText = 'Photo View';
+            document.getElementById('view-card-content').innerHTML = `<img src="${url}" class="w-full rounded-lg shadow-2xl">`;
+            const modal = document.getElementById('view-card-modal');
+            const box = document.getElementById('view-card-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function openViewCard(title, content, type) {
+            document.getElementById('view-card-title').innerText = title;
+            document.getElementById('view-card-content').innerText = content;
+            const modal = document.getElementById('view-card-modal');
+            const box = document.getElementById('view-card-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeViewCard() {
+            const modal = document.getElementById('view-card-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function openLoginModal() {
+            const modal = document.getElementById('login-modal');
+            const box = document.getElementById('login-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeLoginModal() {
+            const modal = document.getElementById('login-modal');
+            const box = document.getElementById('login-box');
+            modal.classList.add('opacity-0');
+            box.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('login-user').value = '';
+                document.getElementById('login-pass').value = '';
+            }, 300);
+        }
+
+        function attemptLogin() {
+            const user = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+            
+            if(user === 'admin' && pass === '@dmin2026') {
+                closeLoginModal();
+                showMessage("Authentication Successful. Welcome to the Dashboard.");
+                
+                // Hide Public view, Show Admin view
+                document.querySelector('main').classList.add('hidden');
+                document.getElementById('navbar').classList.add('hidden');
+                document.getElementById('admin-dashboard').classList.remove('hidden');
+                document.getElementById('admin-dashboard').classList.add('flex');
+                
+                renderAdminViews();
+            } else {
+                showMessage("Access Denied: Invalid Username or Password.", "error");
+            }
+        }
+
+        function logoutAdmin() {
+            // Hide Admin view, Show Public view
+            document.getElementById('admin-dashboard').classList.add('hidden');
+            document.getElementById('admin-dashboard').classList.remove('flex');
+            document.querySelector('main').classList.remove('hidden');
+            document.getElementById('navbar').classList.remove('hidden');
+            
+            showMessage("Changes Saved. Successfully logged out.");
+            
+            // Re-render the public website to instantly show any updates made by the admin
+            renderPublicViews();
+            
+            // Scroll to the top to see the hero
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+
+        // --- 6. Tab Navigation Logic ---
+        function switchTab(tabId) {
+            // Hide all panels
+            document.querySelectorAll('.dashboard-tab').forEach(tab => tab.classList.add('hidden'));
+            
+            // Reset all sidebar buttons to inactive state
+            // UPDATED to include gallery
+            ['news', 'calendar', 'about', 'gallery'].forEach(id => {
+                const btn = document.getElementById(`tab-btn-${id}`);
+                btn.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium';
+            });
+            
+            // Show selected panel
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            
+            // Highlight selected button
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            activeBtn.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors bg-[#ffd700] text-[#001f3f] font-bold shadow-[0_0_15px_rgba(255,215,0,0.2)]';
+        }
+
+        // --- 7. Admin Data Operations (CRUD) ---
+        function toggleNewsForm() {
+            const form = document.getElementById('news-form-container');
+            form.classList.toggle('hidden');
+        }
+
+        async function addNewsArticle() {
+            const title = document.getElementById('news-title').value;
+            const cat = document.getElementById('news-category').value;
+            const icon = document.getElementById('news-icon').value || 'file-text';
+            const excerpt = document.getElementById('news-excerpt').value;
+            
+            if(!title || !cat || !excerpt) {
+                showMessage("Required fields missing. Please complete the form.", "error");
+                return;
+            }
+
+            const newArticle = {
+                title: title,
+                category: cat,
+                icon: icon,
+                date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                excerpt: excerpt,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                const docRef = await articlesCollection.add(newArticle);
+                // Add to the top of the array (local copy, so we don't wait on the server timestamp)
+                portalState.articles.unshift({ ...newArticle, id: docRef.id });
+
+                // Clear inputs
+                document.getElementById('news-title').value = '';
+                document.getElementById('news-category').value = '';
+                document.getElementById('news-icon').value = '';
+                document.getElementById('news-excerpt').value = '';
+
+                toggleNewsForm();
+                renderAdminViews();
+                renderPublicViews();
+                showMessage("New article successfully published to the live site.");
+            } catch (err) {
+                console.error('Failed to publish article:', err);
+                showMessage("Could not publish article. Please try again.", "error");
+            }
+        }
+
+        async function deleteArticle(id) {
+            try {
+                await articlesCollection.doc(id).delete();
+                portalState.articles = portalState.articles.filter(a => a.id !== id);
+                renderAdminViews();
+                renderPublicViews();
+                showMessage("Article permanently deleted.");
+            } catch (err) {
+                console.error('Failed to delete article:', err);
+                showMessage("Could not delete article. Please try again.", "error");
+            }
+        }
+
+        async function addEvent() {
+            const title = document.getElementById('event-title').value;
+            const date = document.getElementById('event-date').value;
+            
+            if(!title || !date) {
+                showMessage("Both Date and Title are required for calendar events.", "error");
+                return;
+            }
+
+            const newEvent = { title, date, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+
+            try {
+                const docRef = await eventsCollection.add(newEvent);
+                portalState.events.push({ ...newEvent, id: docRef.id });
+
+                document.getElementById('event-title').value = '';
+                document.getElementById('event-date').value = '';
+
+                renderAdminViews();
+                renderPublicViews();
+                showMessage("Event added to the official school calendar.");
+            } catch (err) {
+                console.error('Failed to add event:', err);
+                showMessage("Could not add event. Please try again.", "error");
+            }
+        }
+
+        async function deleteEvent(id) {
+            try {
+                await eventsCollection.doc(id).delete();
+                portalState.events = portalState.events.filter(e => e.id !== id);
+                renderAdminViews();
+                renderPublicViews();
+                showMessage("Event removed from calendar.");
+            } catch (err) {
+                console.error('Failed to delete event:', err);
+                showMessage("Could not delete event. Please try again.", "error");
+            }
+        }
+
+        async function saveAboutInfo() {
+            const text = document.getElementById('about-textarea').value;
+            if(!text.trim()) {
+                showMessage("The 'Get To Know Us' section cannot be empty.", "error");
+                return;
+            }
+            try {
+                await settingsDoc.set({ aboutText: text });
+                portalState.aboutText = text;
+                renderPublicViews();
+                showMessage("School information updated successfully!");
+            } catch (err) {
+                console.error('Failed to save about text:', err);
+                showMessage("Could not save changes. Please try again.", "error");
+            }
+        }
+
+        // Gallery Upload Logic — compresses the photo, then saves it to Firestore
+        async function handleGalleryUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showMessage("Uploading photo...");
+            try {
+                let dataUrl = await compressImageFile(file, 1600, 0.8);
+                // Firestore caps each document at ~1MB — shrink further if needed
+                if (dataUrl.length > 900000) {
+                    dataUrl = await compressImageFile(file, 1200, 0.55);
+                }
+                const caption = file.name.split('.')[0];
+
+                const docRef = await galleryCollection.add({
+                    url: dataUrl,
+                    caption,
+                    uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                portalState.gallery.unshift({ id: docRef.id, url: dataUrl, caption });
+                renderAdminViews();
+                renderPublicViews();
+                showMessage("Photo uploaded to gallery successfully.");
+            } catch (err) {
+                console.error('Upload failed:', err);
+                showMessage("Upload failed. Please try again.", "error");
+            }
+            // Reset input so the same file can be uploaded again if needed
+            event.target.value = '';
+        }
+
+        // Gallery Delete Logic — removes the photo from Firestore, then from the UI
+        async function deleteGalleryImage(id) {
+            try {
+                await galleryCollection.doc(id).delete();
+                portalState.gallery = portalState.gallery.filter(img => img.id !== id);
+                renderAdminViews();
+                renderPublicViews();
+                showMessage("Photo deleted from gallery.");
+            } catch (err) {
+                console.error('Delete failed:', err);
+                showMessage("Could not delete photo. Please try again.", "error");
+            }
+        }
+
+        // ============================================================
+        // STUDENT RESULTS & STAFF MARKS-MANAGEMENT SYSTEM (Firestore + Auth)
+        // ============================================================
+        const classesCollection = firebase.firestore().collection('classes');
+        const studentsCollection = firebase.firestore().collection('students');
+        const resultsCollection = firebase.firestore().collection('results');
+        const staffCollection = firebase.firestore().collection('staff');
+        const gradingDoc = firebase.firestore().collection('settings').doc('grading');
+
+        // A second, independent Firebase connection used ONLY when an admin creates a
+        // new student or teacher account. Creating an account normally signs you in as
+        // that new account — using a separate connection means the admin's own session
+        // is never disturbed.
+        const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+
+        function slugify(str) {
+            return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '') || 'user';
+        }
+
+        const TERM_ORDER = { 'Term 1': 1, 'Term 2': 2, 'Term 3': 3 };
+
+        const marksState = {
+            classes: [],
+            students: [],
+            staffAccounts: [],
+            gradingBands: [
+                { grade: 'A', min: 80, max: 100 },
+                { grade: 'B', min: 70, max: 79 },
+                { grade: 'C', min: 60, max: 69 },
+                { grade: 'D', min: 50, max: 59 },
+                { grade: 'E', min: 40, max: 49 },
+                { grade: 'U', min: 0,  max: 39 }
+            ],
+            loggedInStudent: null,
+            studentResults: [],
+            studentTrendChart: null,
+            selectedStaffRole: null,
+            isBootstrapAdmin: false,
+            loggedInStaff: null,
+            subjectRowCount: 0,
+            gradingRowCount: 0
+        };
+
+        function calculateGrade(score) {
+            const band = marksState.gradingBands.find(b => score >= b.min && score <= b.max);
+            return band ? band.grade : '-';
+        }
+
+        // Used by the Teacher dashboard — fetches only the class(es) this teacher is
+        // assigned to, and only the students within them. Much smaller download than
+        // pulling every class and every student in the whole school, so it loads faster
+        // on a slow connection.
+        async function loadTeacherClassesAndStudents() {
+            try {
+                const teacherUid = marksState.loggedInStaff.uid;
+
+                // Step 1: Read the teacher's own staff doc — this is always allowed
+                // (allow read: if true) so it works regardless of auth token timing.
+                const staffDocSnap = await staffCollection.doc(teacherUid).get();
+                const assignedClassId = staffDocSnap.exists ? staffDocSnap.data().assignedClassId : null;
+
+                if (!assignedClassId) {
+                    marksState.classes = [];
+                    marksState.students = [];
+                    return;
+                }
+
+                // Step 2: Read the specific class doc by its ID — a direct document
+                // read by ID is simpler and faster than a filtered collection query.
+                const classDoc = await classesCollection.doc(assignedClassId).get();
+                marksState.classes = classDoc.exists ? [{ id: classDoc.id, ...classDoc.data() }] : [];
+
+                // Step 3: Fetch only the students in that class.
+                const studentSnap = await studentsCollection.where('classId', '==', assignedClassId).get();
+                marksState.students = studentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (err) {
+                console.error('Failed to load teacher classes/students:', err);
+                showMessage("Could not load your classes. Check your connection.", "error");
+            }
+        }
+
+        async function loadGradingBands() {
+            try {
+                const snap = await gradingDoc.get();
+                if (snap.exists && Array.isArray(snap.data().bands) && snap.data().bands.length) {
+                    marksState.gradingBands = snap.data().bands;
+                }
+            } catch (err) {
+                console.error('Failed to load grading bands:', err);
+            }
+        }
+
+        function averageOf(result) {
+            if (!result.subjects || !result.subjects.length) return 0;
+            return result.subjects.reduce((sum, s) => sum + Number(s.score), 0) / result.subjects.length;
+        }
+
+        // ---------- STUDENT PORTAL ----------
+
+        function openStudentLogin() {
+            const modal = document.getElementById('student-login-modal');
+            const box = document.getElementById('student-login-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeStudentLogin() {
+            const modal = document.getElementById('student-login-modal');
+            const box = document.getElementById('student-login-box');
+            modal.classList.add('opacity-0');
+            box.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('student-login-name').value = '';
+                document.getElementById('student-login-id').value = '';
+            }, 300);
+        }
+
+        async function attemptStudentLogin() {
+            const name = document.getElementById('student-login-name').value.trim();
+            const studentId = document.getElementById('student-login-id').value.trim();
+
+            if (!name || !studentId) {
+                showMessage("Please enter both your name and Student ID.", "error");
+                return;
+            }
+
+            const email = `${studentId.toLowerCase()}@students.shungu-high.local`;
+
+            try {
+                const cred = await firebase.auth().signInWithEmailAndPassword(email, studentId);
+                const profileSnap = await studentsCollection.doc(cred.user.uid).get();
+
+                if (!profileSnap.exists || profileSnap.data().name.trim().toLowerCase() !== name.toLowerCase()) {
+                    await firebase.auth().signOut();
+                    showMessage("No student found with that name and Student ID.", "error");
+                    return;
+                }
+
+                const data = profileSnap.data();
+                marksState.loggedInStudent = { id: cred.user.uid, name: data.name, studentId: data.studentId, classId: data.classId, className: data.className || '' };
+
+                closeStudentLogin();
+
+                document.querySelector('main').classList.add('hidden');
+                document.getElementById('navbar').classList.add('hidden');
+                document.getElementById('student-dashboard').classList.remove('hidden');
+                document.getElementById('student-dashboard').classList.add('flex');
+                document.getElementById('student-dashboard-name').textContent = `${data.name} — ${data.className || 'No class assigned'}`;
+
+                await loadStudentResults(cred.user.uid);
+                showMessage(`Welcome, ${data.name}.`);
+            } catch (err) {
+                console.error('Student login failed:', err);
+                showMessage("No student found with that name and Student ID.", "error");
+            }
+        }
+
+        function downloadStudentResultsPDF() {
+            const student = marksState.loggedInStudent;
+            const results = marksState.studentResults;
+
+            if (!student || !results.length) {
+                showMessage("No results available to download yet.", "error");
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                doc.setFontSize(18);
+                doc.setTextColor(0, 31, 63);
+                doc.text("Shungu High School", 14, 20);
+                doc.setFontSize(11);
+                doc.setTextColor(100, 100, 100);
+                doc.text("Official Academic Results Report", 14, 27);
+
+                doc.setFontSize(10);
+                doc.setTextColor(20, 20, 20);
+                doc.text(`Name: ${student.name}`, 14, 38);
+                doc.text(`Student ID: ${student.studentId}`, 14, 44);
+                doc.text(`Class: ${student.className || '—'}`, 14, 50);
+                doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 56);
+
+                let y = 66;
+
+                results.forEach((result) => {
+                    const avg = averageOf(result);
+                    const overallGrade = calculateGrade(avg);
+
+                    if (y > 250) { doc.addPage(); y = 20; }
+
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 31, 63);
+                    doc.text(`${result.term} ${result.year} — Average: ${avg.toFixed(1)}% (Grade ${overallGrade})`, 14, y);
+
+                    doc.autoTable({
+                        startY: y + 4,
+                        head: [['Subject', 'Score', 'Grade']],
+                        body: result.subjects.map(s => [s.subject, `${s.score}%`, calculateGrade(Number(s.score))]),
+                        theme: 'grid',
+                        headStyles: { fillColor: [0, 31, 63], textColor: [255, 215, 0] },
+                        styles: { fontSize: 10 },
+                        margin: { left: 14, right: 14 }
+                    });
+
+                    y = doc.lastAutoTable.finalY + 14;
+                });
+
+                doc.save(`${student.name.replace(/\s+/g, '_')}_Results.pdf`);
+                showMessage("Your results report has been downloaded.");
+            } catch (err) {
+                console.error('Failed to generate PDF:', err);
+                showMessage("Could not generate the PDF. Please try again.", "error");
+            }
+        }
+
+        async function loadStudentResults(studentDocId) {
+            try {
+                await loadGradingBands();
+                const snap = await resultsCollection.where('studentId', '==', studentDocId).get();
+                marksState.studentResults = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => (a.year - b.year) || (TERM_ORDER[a.term] - TERM_ORDER[b.term]));
+            } catch (err) {
+                console.error('Failed to load results:', err);
+                showMessage("Could not load your results. Check your connection.", "error");
+                marksState.studentResults = [];
+            }
+            renderStudentDashboard();
+        }
+
+        function renderStudentDashboard() {
+            const select = document.getElementById('student-term-select');
+            const allResults = marksState.studentResults;
+
+            if (!allResults.length) {
+                select.innerHTML = `<option>No results yet</option>`;
+                document.getElementById('student-term-detail').innerHTML = `<p class="text-slate-500 text-sm">Your teacher hasn't published any results yet.</p>`;
+                document.getElementById('student-trend-empty').classList.remove('hidden');
+                document.getElementById('student-trend-chart').classList.add('hidden');
+                if (marksState.studentTrendChart) { marksState.studentTrendChart.destroy(); marksState.studentTrendChart = null; }
+                return;
+            }
+
+            // Deduplicate: if a teacher saved the same term+year more than once,
+            // keep only the last one and delete the older duplicates from Firestore.
+            const seen = new Map();
+            const toDelete = [];
+            allResults.forEach((r, i) => {
+                const key = `${r.term}-${r.year}`;
+                if (seen.has(key)) toDelete.push(seen.get(key)); // mark older entry for removal
+                seen.set(key, i);
+            });
+            // Silently delete orphaned duplicate docs from Firestore in the background
+            if (toDelete.length) {
+                const batch = firebase.firestore().batch();
+                toDelete.forEach(i => batch.delete(resultsCollection.doc(allResults[i].id)));
+                batch.commit().catch(e => console.warn('Cleanup of duplicate results failed:', e));
+            }
+            // Build a unique results array in chronological order
+            marksState.uniqueResults = [...seen.values()].map(i => allResults[i]);
+
+            document.getElementById('student-trend-empty').classList.add('hidden');
+            document.getElementById('student-trend-chart').classList.remove('hidden');
+
+            select.innerHTML = marksState.uniqueResults.map((r, i) =>
+                `<option value="${i}">${r.term} ${r.year}</option>`
+            ).join('');
+            select.selectedIndex = marksState.uniqueResults.length - 1;
+
+            renderStudentTermDetail();
+            renderStudentTrendChart();
+        }
+
+        function renderStudentTermDetail() {
+            const select = document.getElementById('student-term-select');
+            const results = marksState.uniqueResults || marksState.studentResults;
+            const result = results[Number(select.value)];
+            const container = document.getElementById('student-term-detail');
+            if (!result) { container.innerHTML = ''; return; }
+
+            const avg = averageOf(result);
+            container.innerHTML = `
+                <div class="flex flex-wrap gap-6 mb-6">
+                    <div><div class="text-xs text-slate-400 uppercase tracking-wider">Average</div><div class="text-2xl font-bold text-[#ffd700]">${avg.toFixed(1)}%</div></div>
+                    <div><div class="text-xs text-slate-400 uppercase tracking-wider">Overall Grade</div><div class="text-2xl font-bold text-[#ffd700]">${calculateGrade(avg)}</div></div>
+                </div>
+                <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[400px]">
+                    <thead><tr class="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
+                        <th class="pb-3">Subject</th><th class="pb-3">Score</th><th class="pb-3">Grade</th>
+                    </tr></thead>
+                    <tbody class="divide-y divide-white/5">
+                        ${result.subjects.map(s => `
+                            <tr>
+                                <td class="py-3">${s.subject}</td>
+                                <td class="py-3">${s.score}%</td>
+                                <td class="py-3 font-bold text-[#ffd700]">${calculateGrade(Number(s.score))}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                </div>
+            `;
+        }
+
+        function renderStudentTrendChart() {
+            const ctx = document.getElementById('student-trend-chart');
+            const results = marksState.uniqueResults || marksState.studentResults;
+            const labels = results.map(r => `${r.term} ${r.year}`);
+            const data = results.map(r => Number(averageOf(r).toFixed(1)));
+
+            if (marksState.studentTrendChart) marksState.studentTrendChart.destroy();
+            marksState.studentTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Term Average (%)',
+                        data,
+                        borderColor: '#ffd700',
+                        backgroundColor: 'rgba(255,215,0,0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#ffd700'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { min: 0, max: 100, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        }
+
+        function logoutStudent() {
+            firebase.auth().signOut();
+            marksState.loggedInStudent = null;
+            marksState.studentResults = [];
+            marksState.uniqueResults = [];
+            if (marksState.studentTrendChart) { marksState.studentTrendChart.destroy(); marksState.studentTrendChart = null; }
+            document.getElementById('student-dashboard').classList.add('hidden');
+            document.getElementById('student-dashboard').classList.remove('flex');
+            document.querySelector('main').classList.remove('hidden');
+            document.getElementById('navbar').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ---------- STAFF (ADMIN / TEACHER) PORTAL ----------
+
+        function openStaffRoleSelect() {
+            const modal = document.getElementById('staff-role-modal');
+            const box = document.getElementById('staff-role-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeStaffRoleSelect() {
+            const modal = document.getElementById('staff-role-modal');
+            const box = document.getElementById('staff-role-box');
+            modal.classList.add('opacity-0');
+            box.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        async function selectStaffRole(role) {
+            marksState.selectedStaffRole = role;
+            closeStaffRoleSelect();
+
+            marksState.isBootstrapAdmin = false;
+            if (role === 'admin') {
+                // If no administrator account exists yet, the login form becomes a
+                // one-time "create the first admin account" form instead.
+                try {
+                    const snap = await staffCollection.where('role', '==', 'admin').limit(1).get();
+                    marksState.isBootstrapAdmin = snap.empty;
+                } catch (err) {
+                    console.error('Failed to check for existing admin:', err);
+                }
+            }
+
+            const confirmWrap = document.getElementById('staff-login-confirm-wrap');
+            const submitBtn = document.getElementById('staff-login-submit-btn');
+            if (marksState.isBootstrapAdmin) {
+                document.getElementById('staff-login-title').textContent = 'Create Administrator Account';
+                document.getElementById('staff-login-subtitle').textContent = 'No administrator account exists yet. Set one up now (password must be at least 6 characters).';
+                confirmWrap.classList.remove('hidden');
+                submitBtn.textContent = 'Create Account';
+            } else {
+                document.getElementById('staff-login-title').textContent = role === 'admin' ? 'Administrator Login' : 'Teacher Login';
+                document.getElementById('staff-login-subtitle').textContent = 'Enter your name and password to continue.';
+                confirmWrap.classList.add('hidden');
+                submitBtn.textContent = 'Login';
+            }
+
+            setTimeout(openStaffLogin, 200);
+        }
+
+        function openStaffLogin() {
+            const modal = document.getElementById('staff-login-modal');
+            const box = document.getElementById('staff-login-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeStaffLogin() {
+            const modal = document.getElementById('staff-login-modal');
+            const box = document.getElementById('staff-login-box');
+            modal.classList.add('opacity-0');
+            box.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('staff-login-name').value = '';
+                document.getElementById('staff-login-pass').value = '';
+                document.getElementById('staff-login-confirm').value = '';
+            }, 300);
+        }
+
+        async function attemptStaffLogin() {
+            const name = document.getElementById('staff-login-name').value.trim();
+            const pass = document.getElementById('staff-login-pass').value;
+            const role = marksState.selectedStaffRole;
+
+            if (!name || !pass) {
+                showMessage("Please enter both your name and password.", "error");
+                return;
+            }
+
+            // ---- One-time bootstrap: create the very first Administrator account ----
+            if (marksState.isBootstrapAdmin) {
+                const confirmPass = document.getElementById('staff-login-confirm').value;
+                if (pass.length < 6) {
+                    showMessage("Password must be at least 6 characters.", "error");
+                    return;
+                }
+                if (pass !== confirmPass) {
+                    showMessage("Passwords do not match.", "error");
+                    return;
+                }
+                const loginEmail = `${slugify(name)}@staff.shungu-high.local`;
+                try {
+                    const cred = await firebase.auth().createUserWithEmailAndPassword(loginEmail, pass);
+                    await staffCollection.doc(cred.user.uid).set({ name, role: 'admin', loginEmail });
+                    marksState.loggedInStaff = { name, role: 'admin', uid: cred.user.uid };
+                    closeStaffLogin();
+                    await openMarksAdminDashboard();
+                    showMessage("Administrator account created.");
+                } catch (err) {
+                    console.error('Failed to create admin account:', err);
+                    const msg = err.code === 'auth/email-already-in-use'
+                        ? "An account with that name already exists."
+                        : "Could not create the account. Please try again.";
+                    showMessage(msg, "error");
+                }
+                return;
+            }
+
+            // Normal login
+            try {
+                const snap = await staffCollection.where('role', '==', role).get();
+                const match = snap.docs.find(doc => doc.data().name.trim().toLowerCase() === name.toLowerCase());
+
+                if (!match) {
+                    showMessage("Access Denied: Invalid name or password.", "error");
+                    return;
+                }
+
+                const cred = await firebase.auth().signInWithEmailAndPassword(match.data().loginEmail, pass);
+
+                // Wait for the auth state to fully settle and the Firestore client to
+                // pick up the new token before we make any Firestore queries.
+                // Without this, Firestore can still see request.auth = null.
+                await new Promise((resolve, reject) => {
+                    const unsubscribe = firebase.auth().onAuthStateChanged(user => {
+                        if (user && user.uid === cred.user.uid) {
+                            unsubscribe();
+                            resolve();
+                        }
+                    }, reject);
+                });
+
+                // Force-refresh the ID token so Firestore's security rules
+                // receive the new credentials immediately.
+                await cred.user.getIdToken(true);
+
+                marksState.loggedInStaff = { name: match.data().name, role, uid: cred.user.uid };
+                closeStaffLogin();
+
+                if (role === 'admin') {
+                    await openMarksAdminDashboard();
+                } else {
+                    await openTeacherDashboard();
+                }
+            } catch (err) {
+                console.error('Staff login failed:', err);
+                showMessage("Access Denied: Invalid name or password.", "error");
+            }
+        }
+
+        function logoutStaff() {
+            firebase.auth().signOut();
+            marksState.loggedInStaff = null;
+            document.getElementById('marks-admin-dashboard').classList.add('hidden');
+            document.getElementById('marks-admin-dashboard').classList.remove('flex');
+            document.getElementById('teacher-dashboard').classList.add('hidden');
+            document.getElementById('teacher-dashboard').classList.remove('flex');
+            document.querySelector('main').classList.remove('hidden');
+            document.getElementById('navbar').classList.remove('hidden');
+            showMessage("Successfully signed out.");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ---------- SHARED: classes + students ----------
+
+        // Used by the Admin dashboard, which genuinely needs every class and every student.
+        async function loadClassesAndStudents() {
+            try {
+                const [classSnap, studentSnap] = await Promise.all([
+                    classesCollection.orderBy('name').get(),
+                    studentsCollection.orderBy('name').get()
+                ]);
+                marksState.classes = classSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                marksState.students = studentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (err) {
+                console.error('Failed to load classes/students:', err);
+                showMessage("Could not load classes/students. Check your connection.", "error");
+            }
+        }
+
+        // ---------- ADMIN: RECORDS DASHBOARD ----------
+
+        async function openMarksAdminDashboard() {
+            document.querySelector('main').classList.add('hidden');
+            document.getElementById('navbar').classList.add('hidden');
+            document.getElementById('marks-admin-dashboard').classList.remove('hidden');
+            document.getElementById('marks-admin-dashboard').classList.add('flex');
+
+            await loadClassesAndStudents();
+            await loadStaffAccounts();
+            switchMarksAdminTab('students');
+            renderMarksAdminStudents();
+            renderMarksAdminClasses();
+            renderMarksAdminStaff();
+            populateStudentClassDropdown();
+            populateClassTeacherDropdown();
+            showMessage(`Welcome, ${marksState.loggedInStaff.name}.`);
+        }
+
+        function switchMarksAdminTab(tabId) {
+            document.querySelectorAll('.marks-admin-tab').forEach(tab => tab.classList.add('hidden'));
+            ['students', 'classes', 'staff'].forEach(id => {
+                document.getElementById(`marks-tab-btn-${id}`).className = 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium';
+            });
+            document.getElementById(`marks-tab-${tabId}`).classList.remove('hidden');
+            // Refresh the teacher dropdown every time the Classes tab is opened,
+            // so newly-added teachers always appear in the assignment list.
+            if (tabId === 'classes') populateClassTeacherDropdown();
+            document.getElementById(`marks-tab-btn-${tabId}`).className = 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors bg-[#ffd700] text-[#001f3f] font-bold shadow-[0_0_15px_rgba(255,215,0,0.2)]';
+        }
+
+        function populateStudentClassDropdown() {
+            const select = document.getElementById('student-form-classid');
+            select.innerHTML = marksState.classes.length
+                ? marksState.classes.map(c => `<option value="${c.id}">${c.name} (${c.level})</option>`).join('')
+                : `<option value="">No classes yet — add one first</option>`;
+        }
+
+        function toggleStudentForm() {
+            const container = document.getElementById('student-form-container');
+            container.classList.toggle('hidden');
+            if (!container.classList.contains('hidden')) {
+                populateStudentClassDropdown();
+            } else {
+                document.getElementById('student-edit-id').value = '';
+                document.getElementById('student-form-name').value = '';
+                const idInput = document.getElementById('student-form-studentid');
+                idInput.value = '';
+                idInput.readOnly = false;
+                idInput.title = '';
+                idInput.classList.remove('opacity-60', 'cursor-not-allowed');
+                document.getElementById('student-form-title').innerHTML = `<i data-lucide="user-plus" class="w-5 h-5"></i> Add Student`;
+                lucide.createIcons();
+            }
+        }
+
+        async function saveStudent() {
+            const editId = document.getElementById('student-edit-id').value;
+            const name = document.getElementById('student-form-name').value.trim();
+            const studentId = document.getElementById('student-form-studentid').value.trim();
+            const classId = document.getElementById('student-form-classid').value;
+
+            if (!name || !studentId || !classId) {
+                showMessage("Name, Student ID, and Class are all required.", "error");
+                return;
+            }
+
+            const classObj = marksState.classes.find(c => c.id === classId);
+            const className = classObj ? classObj.name : '';
+
+            try {
+                if (editId) {
+                    // Student ID is locked after creation — it's tied to their login password.
+                    const studentData = { name, classId, className };
+                    await studentsCollection.doc(editId).update(studentData);
+                    const idx = marksState.students.findIndex(s => s.id === editId);
+                    if (idx > -1) marksState.students[idx] = { ...marksState.students[idx], ...studentData };
+                    showMessage("Student updated.");
+                } else {
+                    if (studentId.length < 4) {
+                        showMessage("Student ID should be at least 4 characters (it doubles as their login password).", "error");
+                        return;
+                    }
+                    const loginEmail = `${studentId.toLowerCase()}@students.shungu-high.local`;
+                    const studentData = { name, studentId, classId, className };
+
+                    // Created on the secondary connection so the admin's own session stays logged in.
+                    const cred = await secondaryApp.auth().createUserWithEmailAndPassword(loginEmail, studentId);
+                    await secondaryApp.firestore().collection('students').doc(cred.user.uid).set(studentData);
+                    await secondaryApp.auth().signOut();
+
+                    marksState.students.push({ id: cred.user.uid, ...studentData });
+                    showMessage("Student added.");
+                }
+                toggleStudentForm();
+                renderMarksAdminStudents();
+            } catch (err) {
+                console.error('Failed to save student:', err);
+                const msg = err.code === 'auth/email-already-in-use' ? "That Student ID is already in use." : "Could not save student. Please try again.";
+                showMessage(msg, "error");
+            }
+        }
+
+        function editStudent(id) {
+            const student = marksState.students.find(s => s.id === id);
+            if (!student) return;
+            document.getElementById('student-form-container').classList.remove('hidden');
+            populateStudentClassDropdown();
+            document.getElementById('student-edit-id').value = id;
+            document.getElementById('student-form-name').value = student.name;
+            const idInput = document.getElementById('student-form-studentid');
+            idInput.value = student.studentId;
+            idInput.readOnly = true;
+            idInput.title = "Student ID can't be changed after the account is created — it's their login password.";
+            idInput.classList.add('opacity-60', 'cursor-not-allowed');
+            document.getElementById('student-form-classid').value = student.classId;
+            document.getElementById('student-form-title').innerHTML = `<i data-lucide="pen" class="w-5 h-5"></i> Edit Student`;
+            lucide.createIcons();
+        }
+
+        async function deleteStudent(id) {
+            const student = marksState.students.find(s => s.id === id);
+            if (!student) return;
+
+            try {
+                // 1. Delete all their saved results + Firestore profile in one batch
+                const resultsSnap = await resultsCollection.where('studentId', '==', id).get();
+                const batch = firebase.firestore().batch();
+                resultsSnap.docs.forEach(doc => batch.delete(doc.ref));
+                batch.delete(studentsCollection.doc(id));
+                await batch.commit();
+
+                // 2. Delete their Firebase Auth account — students use their studentId as their
+                //    password, so the secondary app can sign in as them and call user.delete().
+                const loginEmail = `${student.studentId.toLowerCase()}@students.shungu-high.local`;
+                try {
+                    const cred = await secondaryApp.auth().signInWithEmailAndPassword(loginEmail, student.studentId);
+                    await cred.user.delete();
+                    await secondaryApp.auth().signOut();
+                } catch (authErr) {
+                    // Auth deletion failing is non-fatal — Firestore data is already gone.
+                    // This can happen if the account was already deleted manually.
+                    console.warn('Auth account delete skipped:', authErr.message);
+                }
+
+                marksState.students = marksState.students.filter(s => s.id !== id);
+                renderMarksAdminStudents();
+                showMessage("Student fully deleted — profile, results, and login removed.");
+            } catch (err) {
+                console.error('Failed to delete student:', err);
+                showMessage("Could not remove student. Please try again.", "error");
+            }
+        }
+
+        function renderMarksAdminStudents() {
+            const tbody = document.getElementById('marks-admin-students-list');
+            if (!marksState.students.length) {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-slate-500 text-sm">No students added yet.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = marksState.students.map(s => `
+                <tr>
+                    <td class="py-3">${s.name}</td>
+                    <td class="py-3 text-slate-400">${s.studentId}</td>
+                    <td class="py-3 text-slate-400">${s.className || '—'}</td>
+                    <td class="py-3 text-right">
+                        <button onclick="editStudent('${s.id}')" class="p-2 text-slate-400 hover:text-[#ffd700] transition-colors" title="Edit"><i data-lucide="pen" class="w-4 h-4"></i></button>
+                        <button onclick="deleteStudent('${s.id}')" class="p-2 text-red-400 hover:text-red-300 transition-colors" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function populateClassTeacherDropdown() {
+            const select = document.getElementById('class-form-teacher');
+            if (!select) return;
+            const teachers = marksState.staffAccounts.filter(s => s.role === 'teacher');
+            select.innerHTML = `<option value="">— Assign Teacher (optional) —</option>` +
+                teachers.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`).join('');
+        }
+
+        async function addClass() {
+            const name = document.getElementById('class-form-name').value.trim();
+            const level = document.getElementById('class-form-level').value.trim();
+            const teacherSelect = document.getElementById('class-form-teacher');
+            const teacherId = teacherSelect.value || null;
+            const teacherName = teacherId ? teacherSelect.selectedOptions[0].dataset.name : '';
+
+            if (!name || !level) {
+                showMessage("Class name and level are both required.", "error");
+                return;
+            }
+            try {
+                const docRef = await classesCollection.add({ name, level, teacherId, teacherName });
+                marksState.classes.push({ id: docRef.id, name, level, teacherId, teacherName });
+                marksState.classes.sort((a, b) => a.name.localeCompare(b.name));
+                document.getElementById('class-form-name').value = '';
+                document.getElementById('class-form-level').value = '';
+                teacherSelect.value = '';
+                renderMarksAdminClasses();
+                populateStudentClassDropdown();
+                showMessage("Class added.");
+            } catch (err) {
+                console.error('Failed to add class:', err);
+                showMessage("Could not add class. Please try again.", "error");
+            }
+        }
+
+        async function deleteClass(id) {
+            try {
+                await classesCollection.doc(id).delete();
+                marksState.classes = marksState.classes.filter(c => c.id !== id);
+                renderMarksAdminClasses();
+                populateStudentClassDropdown();
+                showMessage("Class removed.");
+            } catch (err) {
+                console.error('Failed to delete class:', err);
+                showMessage("Could not delete class. Please try again.", "error");
+            }
+        }
+
+        function renderMarksAdminClasses() {
+            const tbody = document.getElementById('marks-admin-classes-list');
+            if (!marksState.classes.length) {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-slate-500 text-sm">No classes added yet.</td></tr>`;
+                return;
+            }
+            const teachers = marksState.staffAccounts.filter(s => s.role === 'teacher');
+            tbody.innerHTML = marksState.classes.map(c => `
+                <tr>
+                    <td class="py-3 font-medium">${c.name}</td>
+                    <td class="py-3 text-slate-400">${c.level}</td>
+                    <td class="py-3">
+                        <select onchange="reassignClassTeacher('${c.id}', this.value)" class="bg-[#001f3f]/50 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#ffd700]">
+                            <option value="" ${!c.teacherId ? 'selected' : ''}>— Unassigned —</option>
+                            ${teachers.map(t => `<option value="${t.id}" ${c.teacherId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="py-3 text-right">
+                        <button onclick="deleteClass('${c.id}')" class="p-2 text-red-400 hover:text-red-300 transition-colors" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // Lets the admin assign or change a class's teacher at any time — not just at creation.
+        async function reassignClassTeacher(classId, teacherId) {
+            const teacher = marksState.staffAccounts.find(t => t.id === teacherId);
+            const teacherName = teacher ? teacher.name : '';
+            try {
+                // Update the class document
+                await classesCollection.doc(classId).update({ teacherId: teacherId || null, teacherName });
+
+                // Also store assignedClassId directly on the teacher's staff doc.
+                // This lets the teacher look up their class without a filtered query —
+                // which sidesteps the Firestore auth timing issue entirely.
+                if (teacherId) {
+                    await staffCollection.doc(teacherId).update({ assignedClassId: classId });
+                }
+
+                // If unassigning, clear from the old teacher's staff doc too
+                const oldClass = marksState.classes.find(c => c.id === classId);
+                if (oldClass && oldClass.teacherId && oldClass.teacherId !== teacherId) {
+                    await staffCollection.doc(oldClass.teacherId).update({ assignedClassId: null });
+                }
+
+                const idx = marksState.classes.findIndex(c => c.id === classId);
+                if (idx > -1) { marksState.classes[idx].teacherId = teacherId || null; marksState.classes[idx].teacherName = teacherName; }
+                showMessage(teacherId ? `${teacherName} assigned to this class.` : "Teacher unassigned from this class.");
+            } catch (err) {
+                console.error('Failed to reassign teacher:', err);
+                showMessage("Could not update the teacher assignment. Please try again.", "error");
+                renderMarksAdminClasses();
+            }
+        }
+
+        async function loadStaffAccounts() {
+            try {
+                const snap = await staffCollection.orderBy('name').get();
+                marksState.staffAccounts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (err) {
+                console.error('Failed to load staff accounts:', err);
+                marksState.staffAccounts = [];
+            }
+        }
+
+        async function addStaffAccount() {
+            const name = document.getElementById('staff-form-name').value.trim();
+            const password = document.getElementById('staff-form-pass').value;
+            const role = document.getElementById('staff-form-role').value;
+            if (!name || !password) {
+                showMessage("Name and password are both required.", "error");
+                return;
+            }
+            if (password.length < 6) {
+                showMessage("Password must be at least 6 characters.", "error");
+                return;
+            }
+            const nameTaken = marksState.staffAccounts.some(s => s.name.trim().toLowerCase() === name.toLowerCase());
+            if (nameTaken) {
+                showMessage("That name is already used by another staff account — try adding an initial, e.g. 'John Moyo T'.", "error");
+                return;
+            }
+
+            const loginEmail = `${slugify(name)}@staff.shungu-high.local`;
+
+            try {
+                // Created on the secondary connection so the admin's own session stays logged in.
+                const cred = await secondaryApp.auth().createUserWithEmailAndPassword(loginEmail, password);
+                const staffData = { name, role, loginEmail };
+                await secondaryApp.firestore().collection('staff').doc(cred.user.uid).set(staffData);
+                await secondaryApp.auth().signOut();
+
+                marksState.staffAccounts.push({ id: cred.user.uid, ...staffData });
+                document.getElementById('staff-form-name').value = '';
+                document.getElementById('staff-form-pass').value = '';
+                renderMarksAdminStaff();
+                populateClassTeacherDropdown(); // keep class teacher dropdown in sync
+                showMessage("Account created.");
+            } catch (err) {
+                console.error('Failed to add staff account:', err);
+                const msg = err.code === 'auth/email-already-in-use' ? "That name is already taken. Try a variant." : "Could not create account. Please try again.";
+                showMessage(msg, "error");
+            }
+        }
+
+        async function deleteStaffAccount(id) {
+            const staffMember = marksState.staffAccounts.find(s => s.id === id);
+            if (!staffMember) return;
+
+            try {
+                // 1. Delete Firestore profile
+                await staffCollection.doc(id).delete();
+
+                // 2. Delete their Firebase Auth account using the Auth REST API.
+                //    The admin is currently signed in, so we can get their ID token
+                //    and use it to call deleteAccount on behalf of the target UID.
+                try {
+                    const adminToken = await firebase.auth().currentUser.getIdToken();
+                    await fetch(
+                        `https://identitytoolkit.googleapis.com/v1/projects/${firebaseConfig.projectId}/accounts/${id}:delete`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }
+                        }
+                    );
+                } catch (authErr) {
+                    console.warn('Auth account delete skipped (may need Identity Platform):', authErr.message);
+                }
+
+                marksState.staffAccounts = marksState.staffAccounts.filter(s => s.id !== id);
+                renderMarksAdminStaff();
+                populateClassTeacherDropdown();
+                showMessage(`${staffMember.name}'s account fully deleted.`);
+            } catch (err) {
+                console.error('Failed to delete staff account:', err);
+                showMessage("Could not remove account. Please try again.", "error");
+            }
+        }
+
+        function renderMarksAdminStaff() {
+            const tbody = document.getElementById('marks-admin-staff-list');
+            if (!marksState.staffAccounts.length) {
+                tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-slate-500 text-sm">No teacher/admin accounts added yet.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = marksState.staffAccounts.map(s => `
+                <tr>
+                    <td class="py-3">${s.name}</td>
+                    <td class="py-3 text-slate-400 capitalize">${s.role}</td>
+                    <td class="py-3 text-right">
+                        <button onclick="deleteStaffAccount('${s.id}')" class="p-2 text-red-400 hover:text-red-300 transition-colors" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // ---------- TEACHER DASHBOARD ----------
+
+        async function openTeacherDashboard() {
+            document.querySelector('main').classList.add('hidden');
+            document.getElementById('navbar').classList.add('hidden');
+            document.getElementById('teacher-dashboard').classList.remove('hidden');
+            document.getElementById('teacher-dashboard').classList.add('flex');
+            switchTeacherTab('entry');
+
+            // Show a loading state in the class dropdown immediately, instead of it
+            // sitting empty/blank while the database responds.
+            const classSelect = document.getElementById('teacher-select-class');
+            classSelect.innerHTML = `<option value="">Loading your classes…</option>`;
+
+            // Run both database reads at the same time instead of one after another —
+            // this also only fetches this teacher's own class(es) and students, not
+            // the whole school, so it loads faster on a slow connection.
+            await Promise.all([loadTeacherClassesAndStudents(), loadGradingBands()]);
+
+            populateTeacherClassDropdown();
+            renderGradingBandsEditor();
+            showMessage(`Welcome, ${marksState.loggedInStaff.name}.`);
+        }
+
+        function switchTeacherTab(tabId) {
+            document.querySelectorAll('.teacher-tab').forEach(tab => tab.classList.add('hidden'));
+            ['entry', 'grading'].forEach(id => {
+                document.getElementById(`teacher-tab-btn-${id}`).className = 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-slate-400 hover:bg-white/5 transition-colors font-medium';
+            });
+            document.getElementById(`teacher-tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`teacher-tab-btn-${tabId}`).className = 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors bg-[#ffd700] text-[#001f3f] font-bold shadow-[0_0_15px_rgba(255,215,0,0.2)]';
+        }
+
+        function populateTeacherClassDropdown() {
+            const select = document.getElementById('teacher-select-class');
+            // marksState.classes is already scoped to this teacher's classes only
+            // (loaded via loadTeacherClassesAndStudents), so no further filtering needed.
+            const myClasses = marksState.classes;
+            select.innerHTML = myClasses.length
+                ? myClasses.map(c => `<option value="${c.id}">${c.name} (${c.level})</option>`).join('')
+                : `<option value="">No classes assigned to you yet — ask the admin to assign one</option>`;
+            onTeacherClassChange();
+        }
+
+        function onTeacherClassChange() {
+            const classId = document.getElementById('teacher-select-class').value;
+            const classStudents = marksState.students.filter(s => s.classId === classId);
+            renderMarksTable(classStudents);
+            loadExistingResultsIntoTable(); // pre-fill if results already exist for this term/year
+        }
+
+        // Called whenever class, term, or year changes — queries Firestore for any
+        // existing results for that combination and populates the table rows so that
+        // saving overwrites the old entry rather than creating a duplicate.
+        async function loadExistingResultsIntoTable() {
+            const classId = document.getElementById('teacher-select-class').value;
+            const term = document.getElementById('teacher-result-term').value;
+            const year = Number(document.getElementById('teacher-result-year').value);
+            if (!classId) return;
+
+            try {
+                const snap = await resultsCollection
+                    .where('classId', '==', classId)
+                    .where('term', '==', term)
+                    .where('year', '==', year)
+                    .get();
+
+                const byStudent = {};
+                snap.docs.forEach(doc => { byStudent[doc.data().studentId] = { id: doc.id, ...doc.data() }; });
+
+                // For each row in the marks table, tag it with its existing result doc id
+                // and fill in the score inputs if data already exists.
+                const subjects = getSubjectColumns();
+                document.querySelectorAll('#marks-entry-tbody tr').forEach(row => {
+                    const existing = byStudent[row.dataset.studentId];
+                    if (!existing) return;
+                    row.dataset.existingResultId = existing.id;
+                    if (!existing.subjects) return;
+                    const inputs = row.querySelectorAll('.score-input');
+                    subjects.forEach((sub, i) => {
+                        const match = existing.subjects.find(s => s.subject === sub);
+                        if (match && inputs[i]) inputs[i].value = match.score;
+                    });
+                });
+            } catch (err) {
+                console.error('Failed to load existing results:', err);
+            }
+        }
+
+        // ── Marks spreadsheet table ──────────────────────────────────────
+        // Track subject column names separately from the table rows
+        function getSubjectColumns() {
+            return [...document.querySelectorAll('.marks-subject-header-input')].map(i => i.value.trim()).filter(Boolean);
+        }
+
+        function addSubjectColumn() {
+            const header = document.getElementById('subject-columns-header');
+            const idx = header.children.length;
+            const wrap = document.createElement('div');
+            wrap.className = 'flex items-center gap-1 bg-[#001f3f]/50 border border-white/10 rounded-lg px-2 py-1';
+            wrap.innerHTML = `
+                <input type="text" placeholder="Subject ${idx + 1}" class="marks-subject-header-input bg-transparent text-white text-sm focus:outline-none w-32" oninput="rebuildMarksTableHeaders()">
+                <button onclick="removeSubjectColumn(this)" class="text-slate-500 hover:text-red-400 transition-colors"><i data-lucide="x" class="w-3 h-3"></i></button>
+            `;
+            header.appendChild(wrap);
+            lucide.createIcons();
+            rebuildMarksTableHeaders();
+        }
+
+        function removeSubjectColumn(btn) {
+            btn.closest('div').remove();
+            rebuildMarksTableHeaders();
+        }
+
+        function rebuildMarksTableHeaders() {
+            const subjects = getSubjectColumns();
+            const headerRow = document.querySelector('#marks-entry-table thead tr');
+            // Keep the "Student" th, replace the rest
+            const existing = headerRow.querySelectorAll('th.subject-col-header');
+            existing.forEach(th => th.remove());
+            subjects.forEach(s => {
+                const th = document.createElement('th');
+                th.className = 'subject-col-header px-3 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider';
+                th.textContent = s || '—';
+                headerRow.appendChild(th);
+            });
+            // Update each student row's score cells count
+            document.querySelectorAll('#marks-entry-tbody tr').forEach(row => {
+                const existingCells = row.querySelectorAll('td.score-cell');
+                existingCells.forEach(td => td.remove());
+                subjects.forEach((s, i) => {
+                    const td = document.createElement('td');
+                    td.className = 'score-cell px-3 py-2';
+                    const existingVal = existingCells[i]?.querySelector('input')?.value || '';
+                    td.innerHTML = `<input type="number" min="0" max="100" placeholder="—" value="${existingVal}" class="score-input w-full bg-[#001f3f]/50 border border-white/10 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#ffd700]">`;
+                    row.appendChild(td);
+                });
+            });
+        }
+
+        function renderMarksTable(students) {
+            const tbody = document.getElementById('marks-entry-tbody');
+            const empty = document.getElementById('marks-table-empty');
+            if (!students.length) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+                empty.textContent = 'No students in this class yet.';
+                return;
+            }
+            empty.classList.add('hidden');
+            const subjects = getSubjectColumns();
+            tbody.innerHTML = students.map(s => `
+                <tr data-student-id="${s.id}" data-student-name="${s.name}" data-class-name="${s.className || ''}">
+                    <td class="px-4 py-3 font-medium text-white">${s.name}</td>
+                    ${subjects.map(() => `
+                        <td class="score-cell px-3 py-2">
+                            <input type="number" min="0" max="100" placeholder="—" class="score-input w-full bg-[#001f3f]/50 border border-white/10 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#ffd700]">
+                        </td>
+                    `).join('')}
+                </tr>
+            `).join('');
+        }
+
+        async function saveAllResults() {
+            const classId = document.getElementById('teacher-select-class').value;
+            const term = document.getElementById('teacher-result-term').value;
+            const year = Number(document.getElementById('teacher-result-year').value);
+            const subjects = getSubjectColumns();
+
+            if (!classId) { showMessage("Select a class first.", "error"); return; }
+            if (!subjects.length) { showMessage("Add at least one subject column first.", "error"); return; }
+
+            const rows = document.querySelectorAll('#marks-entry-tbody tr');
+            if (!rows.length) { showMessage("No students in this class yet.", "error"); return; }
+
+            const batch = firebase.firestore().batch();
+            let count = 0;
+
+            rows.forEach(row => {
+                const studentId = row.dataset.studentId;
+                const studentName = row.dataset.studentName;
+                const className = row.dataset.className;
+                const scoreInputs = row.querySelectorAll('.score-input');
+                const rowSubjects = subjects.map((subject, i) => {
+                    const val = scoreInputs[i]?.value;
+                    return val !== '' && val !== undefined ? { subject, score: Number(val) } : null;
+                }).filter(Boolean);
+
+                if (!rowSubjects.length) return; // skip students with no scores entered
+
+                // Check for existing result to overwrite
+                const existingId = row.dataset.existingResultId;
+                if (existingId) {
+                    batch.update(resultsCollection.doc(existingId), { subjects: rowSubjects });
+                } else {
+                    const ref = resultsCollection.doc();
+                    batch.set(ref, {
+                        studentId, studentName, classId, className, term, year,
+                        subjects: rowSubjects,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                count++;
+            });
+
+            if (!count) { showMessage("No scores were entered — nothing to save.", "error"); return; }
+
+            try {
+                await batch.commit();
+                showMessage(`Results saved for ${count} student${count > 1 ? 's' : ''}.`);
+            } catch (err) {
+                console.error('Failed to save results:', err);
+                showMessage("Could not save results. Please try again.", "error");
+            }
+        }
+
+        function renderGradingBandsEditor() {
+            const container = document.getElementById('grading-bands-list');
+            container.innerHTML = '';
+            marksState.gradingRowCount = 0;
+            marksState.gradingBands.forEach(band => addGradingBandRow(band));
+        }
+
+        function addGradingBandRow(band) {
+            const rowId = `grading-row-${marksState.gradingRowCount++}`;
+            const container = document.getElementById('grading-bands-list');
+            const row = document.createElement('div');
+            row.id = rowId;
+            row.className = 'flex gap-3 items-center';
+            row.innerHTML = `
+                <input type="text" placeholder="Grade (e.g. A)" value="${band ? band.grade : ''}" maxlength="2" class="band-grade w-20 bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-2.5 text-white text-center font-bold focus:outline-none focus:border-[#ffd700]">
+                <input type="number" min="0" max="100" placeholder="Min %" value="${band ? band.min : ''}" class="band-min flex-1 bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#ffd700]">
+                <span class="text-slate-500">to</span>
+                <input type="number" min="0" max="100" placeholder="Max %" value="${band ? band.max : ''}" class="band-max flex-1 bg-[#001f3f]/50 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#ffd700]">
+                <button onclick="document.getElementById('${rowId}').remove()" class="text-red-400 hover:text-red-300 transition-colors p-2"><i data-lucide="x" class="w-4 h-4"></i></button>
+            `;
+            container.appendChild(row);
+            lucide.createIcons();
+        }
+
+        async function saveGradingBands() {
+            const rows = document.querySelectorAll('#grading-bands-list > div');
+            const bands = [];
+            rows.forEach(row => {
+                const grade = row.querySelector('.band-grade').value.trim();
+                const min = row.querySelector('.band-min').value;
+                const max = row.querySelector('.band-max').value;
+                if (grade && min !== '' && max !== '') {
+                    bands.push({ grade, min: Number(min), max: Number(max) });
+                }
+            });
+
+            if (!bands.length) {
+                showMessage("Add at least one grade band.", "error");
+                return;
+            }
+
+            bands.sort((a, b) => b.min - a.min);
+
+            try {
+                await gradingDoc.set({ bands });
+                marksState.gradingBands = bands;
+                showMessage("Grading system updated.");
+            } catch (err) {
+                console.error('Failed to save grading bands:', err);
+                showMessage("Could not save grading system. Please try again.", "error");
+            }
+        }
+
+    </script>
+
+    <script>
+        // ==========================================
+        // Three.js 3D Environment Setup
+        // Creating the "Academic Core" floating shield/crest substitute
+        // ==========================================
+
+        const init3DEnvironment = () => {
+            const canvas = document.getElementById('webgl-canvas');
+            
+            // 1. Scene Setup
+            const scene = new THREE.Scene();
+            // Fog to blend objects into the dark background naturally
+            scene.fog = new THREE.FogExp2(0x020617, 0.04);
+
+            // 2. Camera Setup
+            const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 12; // Pull camera back
+            // Shift camera slightly right on desktop so it balances with the left-aligned hero text
+            if(window.innerWidth > 768) {
+                camera.position.x = 3;
+            }
+
+            // 3. Renderer Setup
+            const renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas, 
+                alpha: true, 
+                antialias: window.devicePixelRatio < 2 // Only antialias on non-retina displays for performance
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // 4. Create the "Academic Core" Geometry
+            const coreGroup = new THREE.Group();
+            scene.add(coreGroup);
+
+            // Inner Solid Core (Golden)
+            const innerGeometry = new THREE.IcosahedronGeometry(2, 0); // Low poly geometric shape
+            const innerMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFFD700, // Shungu Gold
+                roughness: 0.2,
+                metalness: 0.8,
+                flatShading: true
+            });
+            const innerMesh = new THREE.Mesh(innerGeometry, innerMaterial);
+            coreGroup.add(innerMesh);
+
+            // Outer Wireframe Shield (Dark Blue / Cyan glow)
+            const outerGeometry = new THREE.IcosahedronGeometry(2.8, 1);
+            const outerMaterial = new THREE.MeshStandardMaterial({
+                color: 0x001f3f, // Shungu Dark Blue
+                wireframe: true,
+                transparent: true,
+                opacity: 0.4,
+                emissive: 0x001f3f,
+                emissiveIntensity: 0.5
+            });
+            const outerMesh = new THREE.Mesh(outerGeometry, outerMaterial);
+            coreGroup.add(outerMesh);
+            
+            // Orbiting Particles (Data/Excellence representation)
+            const particleGeo = new THREE.BufferGeometry();
+            const particleCount = 150;
+            const posArray = new Float32Array(particleCount * 3);
+            for(let i = 0; i < particleCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 15;
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.05,
+                color: 0xFFD700,
+                transparent: true,
+                opacity: 0.6
+            });
+            const particlesMesh = new THREE.Points(particleGeo, particleMat);
+            scene.add(particlesMesh);
+
+            // 5. Cinematic Lighting
+            const ambientLight = new THREE.AmbientLight(0x001f3f, 2); // Deep blue base light
+            scene.add(ambientLight);
+
+            const goldLight1 = new THREE.PointLight(0xFFD700, 3, 20); // Bright gold sun
+            goldLight1.position.set(5, 5, 5);
+            scene.add(goldLight1);
+
+            const goldLight2 = new THREE.PointLight(0xFFD700, 1.5, 20); // Secondary gold rim light
+            goldLight2.position.set(-5, -5, 2);
+            scene.add(goldLight2);
+
+            // 6. Interactive Mouse Parallax Tracking
+            let mouseX = 0;
+            let mouseY = 0;
+            let targetX = 0;
+            let targetY = 0;
+            const windowHalfX = window.innerWidth / 2;
+            const windowHalfY = window.innerHeight / 2;
+
+            document.addEventListener('mousemove', (event) => {
+                mouseX = (event.clientX - windowHalfX) * 0.001;
+                mouseY = (event.clientY - windowHalfY) * 0.001;
+            });
+
+            // Scroll Tracking for Parallax
+            let scrollY = window.scrollY;
+            window.addEventListener('scroll', () => {
+                scrollY = window.scrollY;
+            });
+
+            // 7. Animation Loop
+            const clock = new THREE.Clock();
+
+            const animate = () => {
+                requestAnimationFrame(animate);
+                const elapsedTime = clock.getElapsedTime();
+
+                // Rotate Cores
+                innerMesh.rotation.y += 0.005;
+                innerMesh.rotation.x += 0.002;
+                
+                outerMesh.rotation.y -= 0.003;
+                outerMesh.rotation.z += 0.001;
+
+                // Slowly rotate particle field
+                particlesMesh.rotation.y = elapsedTime * 0.05;
+
+                // Smooth Parallax Interactivity based on Mouse
+                targetX = mouseX * 2;
+                targetY = mouseY * 2;
+                
+                coreGroup.rotation.y += 0.05 * (targetX - coreGroup.rotation.y);
+                coreGroup.rotation.x += 0.05 * (targetY - coreGroup.rotation.x);
+
+                // Move camera down slightly based on scroll to create depth
+                camera.position.y = -scrollY * 0.002;
+
+                renderer.render(scene, camera);
+            };
+
+            animate();
+
+            // 8. Responsive Window Resizing
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                
+                // Adjust position for mobile vs desktop
+                if(window.innerWidth > 768) {
+                    camera.position.x = 3;
+                } else {
+                    camera.position.x = 0;
+                }
+            });
+        };
+
+        // Start 3D environment when window loads
+        window.onload = init3DEnvironment;
+    </script>
+</body>
+</html>
